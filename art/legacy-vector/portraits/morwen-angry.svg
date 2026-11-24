@@ -1,0 +1,170 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="bust   " viewBox="0 0 200 240" width="400" height="480" aria-hidden="true" style="--blink-delay:-1.062s"><style><![CDATA[/* ===== 2D character rig =====
+   Limbs sit inside translated <g> groups, so rotating a limb pivots on its joint
+   (transform-origin 0 0 = the joint). Rest angles are CSS variables per weapon. */
+.figure { display: block; overflow: visible; --af: -55deg; --ab: 14deg; }
+.figure.left { transform: scaleX(-1); }
+.figure.w-bow { --af: -90deg; --ab: -86deg; }
+.figure.w-staff { --af: -35deg; }
+.figure.w-none { --af: 10deg; }
+
+.figure .arm, .figure .leg, .figure .hleg, .figure .wing, .figure .head, .figure .forearm, .figure .shin, .figure .f-eyes { transform-origin: 0 0; }
+.figure .ink { stroke: rgba(36,22,18,.85); stroke-width: .9px; stroke-linejoin: round; }
+.figure .fm-open { opacity: 0; }
+.figure .f-eyes { animation: blink 4.6s infinite; }
+.figure .arm-front .forearm { transform: rotate(var(--ff, -8deg)); }
+.figure.w-bow .arm-front .forearm { --ff: 0deg; }
+.figure.w-staff .arm-front .forearm { --ff: 35deg; }
+.figure .arm-back .forearm { transform: rotate(-14deg); }
+.figure.w-bow .arm-back .forearm { transform: rotate(-4deg); }
+.figure .arm-front { transform: rotate(var(--af)); }
+.figure .arm-back { transform: rotate(var(--ab)); }
+.figure .fig-root { transform-origin: 80px 158px; }
+.figure .upper { transform-origin: 80px 106px; }
+.figure .cape { transform-origin: 80px 74px; animation: capeSway 3.2s ease-in-out infinite; }
+.figure .str-drawn { opacity: 0; }
+.figure .hair { stroke: rgba(255,255,255,.18); stroke-width: .7px; }
+.figure .wing { transform: rotate(-6deg); }
+.figure .mtail { transform-origin: 52px 112px; animation: tailSwish 2.4s ease-in-out infinite; }
+.figure .mhead { animation: headNod 3s ease-in-out infinite; }
+
+@keyframes capeSway { 50% { transform: rotate(3deg); } }
+@keyframes tailSwish { 50% { transform: rotate(-8deg); } }
+@keyframes headNod { 50% { transform: translate(118px, 85.5px); } 0%, 100% { transform: translate(118px, 84px); } }
+
+/* idle: breathing + slight guard sway */
+.figure.pose-idle .upper { animation: breathe 2.8s ease-in-out infinite; }
+.figure.pose-idle .arm-front { animation: armIdle 2.8s ease-in-out infinite; }
+@keyframes breathe { 50% { transform: translateY(1.3px); } }
+@keyframes armIdle { 50% { transform: rotate(calc(var(--af) + 5deg)); } }
+
+/* flyers hover and flap */
+.figure.flying .fig-float { animation: hoverY 1.8s ease-in-out infinite; }
+.figure.flying .wing { animation: flap 1.1s ease-in-out infinite alternate; }
+@keyframes hoverY { 50% { transform: translateY(-4px); } }
+@keyframes flap { from { transform: rotate(-16deg); } to { transform: rotate(22deg); } }
+
+/* walk */
+.figure.pose-walk .leg-back { animation: stride .56s ease-in-out infinite alternate; }
+.figure.pose-walk .leg-front { animation: stride .56s ease-in-out infinite alternate-reverse; }
+.figure.pose-walk .arm-back { animation: swingArm .56s ease-in-out infinite alternate; }
+.figure.pose-walk .upper { animation: bob .28s ease-in-out infinite alternate; }
+.figure.pose-walk .cape { animation-duration: .9s; }
+@keyframes stride { from { transform: rotate(26deg); } to { transform: rotate(-26deg); } }
+.figure.pose-walk .leg-back .shin { animation: knee .56s ease-in-out infinite alternate; }
+.figure.pose-walk .leg-front .shin { animation: knee .56s ease-in-out infinite alternate-reverse; }
+.figure.pose-walk .arm-back .forearm { animation: elbowSwing .56s ease-in-out infinite alternate; }
+@keyframes knee { from { transform: rotate(34deg); } to { transform: rotate(3deg); } }
+@keyframes elbowSwing { from { transform: rotate(-30deg); } to { transform: rotate(-6deg); } }
+
+/* talk: head bob, mouth flaps, open-hand gesture */
+.figure.pose-talk .upper { animation: breathe 1.6s ease-in-out infinite; }
+.figure.pose-talk .head { animation: talkNod .5s ease-in-out infinite alternate; }
+.figure.pose-talk .fm-closed { animation: mClosed .38s step-end infinite; }
+.figure.pose-talk .fm-open { animation: mOpen1 .38s step-end infinite; }
+.figure.pose-talk .arm-back { animation: gesture 1.4s ease-in-out infinite; }
+.figure.pose-talk .arm-back .forearm { animation: gestureFore 1.4s ease-in-out infinite; }
+@keyframes talkNod { from { transform: rotate(-3deg); } to { transform: rotate(3deg) translateY(.6px); } }
+@keyframes gesture { 0%, 100% { transform: rotate(-20deg); } 50% { transform: rotate(-48deg); } }
+@keyframes gestureFore { 0%, 100% { transform: rotate(-50deg); } 50% { transform: rotate(-80deg); } }
+@keyframes swingArm { from { transform: rotate(-22deg); } to { transform: rotate(30deg); } }
+@keyframes bob { to { transform: translateY(-1.8px); } }
+
+/* galloping legs whenever a mounted unit moves or charges */
+.figure.mounted.pose-walk .hleg, .figure.mounted.pose-slash .hleg, .figure.mounted.pose-thrust .hleg, .figure.mounted.pose-chop .hleg {
+  animation: gallop .32s ease-in-out infinite alternate;
+}
+.figure.mounted .hleg.h2, .figure.mounted .hleg.h3 { animation-direction: alternate-reverse; }
+@keyframes gallop { from { transform: rotate(26deg); } to { transform: rotate(-26deg); } }
+
+/* sword: overhead slash */
+.figure.pose-slash .arm-front { animation: slash .62s cubic-bezier(.3, .1, .3, 1) forwards; }
+.figure.pose-slash .upper, .figure.pose-chop .upper { animation: lean .62s ease-in-out forwards; }
+@keyframes slash {
+  0% { transform: rotate(var(--af)); }
+  38% { transform: rotate(-210deg); }
+  56% { transform: rotate(-12deg); }
+  100% { transform: rotate(-40deg); }
+}
+@keyframes lean { 38% { transform: rotate(-6deg); } 56% { transform: rotate(8deg); } 100% { transform: none; } }
+.figure.pose-slash .arm-front .forearm { animation: elbowSlash .62s cubic-bezier(.3, .1, .3, 1) forwards; }
+.figure.pose-chop .arm-front .forearm { animation: elbowChop .7s cubic-bezier(.4, 0, .2, 1) forwards; }
+.figure.pose-thrust .arm-front .forearm { animation: elbowThrust .6s cubic-bezier(.3, .1, .3, 1) forwards; }
+.figure.pose-slash .leg-front .shin, .figure.pose-chop .leg-front .shin, .figure.pose-thrust .leg-front .shin { animation: braceKnee .65s ease-in-out forwards; }
+@keyframes elbowSlash { 0% { transform: rotate(-8deg); } 38% { transform: rotate(-55deg); } 56% { transform: rotate(4deg); } 100% { transform: rotate(-8deg); } }
+@keyframes elbowChop { 0% { transform: rotate(-8deg); } 42% { transform: rotate(-70deg); } 58% { transform: rotate(6deg); } 100% { transform: rotate(-8deg); } }
+@keyframes elbowThrust { 0% { transform: rotate(-8deg); } 35% { transform: rotate(-60deg); } 55% { transform: rotate(0deg); } 100% { transform: rotate(-8deg); } }
+@keyframes braceKnee { 40%, 60% { transform: rotate(16deg); } 100% { transform: none; } }
+
+/* lance: pull back, thrust */
+.figure.pose-thrust .arm-front { animation: thrust .6s cubic-bezier(.3, .1, .3, 1) forwards; }
+.figure.pose-thrust .upper { animation: lunge .6s ease-in-out forwards; }
+@keyframes thrust {
+  0% { transform: rotate(var(--af)); }
+  35% { transform: translateX(-9px) rotate(-42deg); }
+  55% { transform: translateX(13px) rotate(-82deg); }
+  100% { transform: rotate(var(--af)); }
+}
+@keyframes lunge { 35% { transform: rotate(-4deg); } 55% { transform: rotate(9deg); } 100% { transform: none; } }
+
+/* axe: big wind-up chop */
+.figure.pose-chop .arm-front { animation: chop .7s cubic-bezier(.4, 0, .2, 1) forwards; }
+@keyframes chop {
+  0% { transform: rotate(var(--af)); }
+  42% { transform: rotate(-222deg); }
+  58% { transform: rotate(-2deg); }
+  100% { transform: rotate(-35deg); }
+}
+
+/* bow: draw and release */
+.figure.pose-shoot .arm-back { animation: drawArm .7s ease-out forwards; }
+.figure.pose-shoot .str-rest { animation: strRest .7s forwards; }
+.figure.pose-shoot .str-drawn { animation: strDrawn .7s forwards; }
+.figure.pose-shoot .nocked { animation: nock .7s ease-out forwards; }
+@keyframes drawArm { 0% { transform: rotate(var(--ab)); } 50%, 56% { transform: translateX(-5px) rotate(-93deg); } 70%, 100% { transform: rotate(var(--ab)); } }
+@keyframes strRest { 0%, 14% { opacity: 1; } 15%, 56% { opacity: 0; } 57%, 100% { opacity: 1; } }
+@keyframes strDrawn { 0%, 14% { opacity: 0; } 15%, 56% { opacity: 1; } 57%, 100% { opacity: 0; } }
+@keyframes nock { 0% { transform: none; opacity: 1; } 50%, 56% { transform: translateX(-13px); opacity: 1; } 57%, 100% { transform: translateX(-13px); opacity: 0; } }
+
+/* staff: raise and glow */
+.figure.pose-cast .arm-front { animation: cast .9s ease-in-out forwards; }
+.figure.pose-cast .orb { animation: glow .9s ease-in-out forwards; }
+@keyframes cast { 0% { transform: rotate(var(--af)); } 40%, 75% { transform: rotate(-150deg); } 100% { transform: rotate(var(--af)); } }
+@keyframes glow { 40%, 75% { fill: #ffffff; filter: drop-shadow(0 0 6px #9fe0ff); } }
+
+/* reactions */
+.figure.pose-hit .fig-root { animation: recoil .45s ease-out; }
+.figure.pose-dodge .fig-root { animation: sidestep .6s ease-in-out; }
+.figure.pose-die .fig-root { animation: fall 1s ease-in forwards; }
+@keyframes recoil { 25% { transform: translateX(-12px) rotate(-7deg); } 100% { transform: none; } }
+@keyframes sidestep { 30%, 65% { transform: translate(-24px, -4px) rotate(-4deg); } 100% { transform: none; } }
+@keyframes fall {
+  0% { transform: none; opacity: 1; }
+  30% { transform: translateX(-8px) rotate(-10deg); opacity: 1; }
+  100% { transform: translateY(3px) rotate(-84deg); opacity: .3; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .figure * { animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}
+
+/* ===== Portrait busts: blink, breathe, lip-sync ===== */
+.bust { display: block; overflow: visible; }
+.bust .ink { stroke: #2a1a18; stroke-width: 1.8px; stroke-linejoin: round; }
+.bust .breath { animation: bustBreath 3.6s ease-in-out infinite; }
+.bust .eyes { transform-origin: 0 0; animation: blink 5s infinite; animation-delay: var(--blink-delay, 0s); }
+.bust .head { transform-origin: 0 40px; }
+.bust .m-open1, .bust .m-open2 { opacity: 0; }
+.bust .hair-sway { transform-origin: 30px -40px; animation: sway 3.4s ease-in-out infinite; }
+.bust.talking .head { animation: nod .55s ease-in-out infinite alternate; }
+.bust.talking .m-closed { animation: mClosed .42s step-end infinite; }
+.bust.talking .m-open1 { animation: mOpen1 .42s step-end infinite; }
+.bust.talking .m-open2 { animation: mOpen2 .42s step-end infinite; }
+.bust.still .breath, .bust.still .eyes, .bust.still .hair-sway { animation: none; }
+@keyframes bustBreath { 50% { transform: translateY(1.6px); } }
+@keyframes blink { 0%, 95% { transform: scaleY(1); } 97% { transform: scaleY(.08); } 99%, 100% { transform: scaleY(1); } }
+@keyframes nod { from { transform: rotate(-1.4deg); } to { transform: rotate(1.2deg) translateY(1px); } }
+@keyframes sway { 50% { transform: rotate(3deg); } }
+@keyframes mClosed { 0% { opacity: 1; } 25% { opacity: 0; } 75% { opacity: 1; } }
+@keyframes mOpen1 { 0% { opacity: 0; } 25% { opacity: 1; } 50% { opacity: 0; } 75% { opacity: 1; } }
+@keyframes mOpen2 { 0% { opacity: 0; } 50% { opacity: 1; } 75% { opacity: 0; } }
+]]></style><g class="breath"><g transform="translate(100 98)"><path class="ink" d="M-48 -12 Q-60 70 -46 128 L46 128 Q60 70 48 -12 Q42 -60 0 -60 Q-42 -60 -48 -12 Z" fill="#1f1a22"></path></g><g class="bust-body"><path class="ink" d="M10 240 Q14 196 58 184 Q78 178 100 178 Q122 178 142 184 Q186 196 190 240 Z" fill="#3a1f2f"></path><path d="M84 182 L100 206 L116 182" stroke="#c43c5c" stroke-width="5" fill="none"></path><path class="ink" d="M10 240 Q8 204 40 188 Q58 182 70 186 L64 204 Q40 214 36 240 Z" fill="#5a1f35"></path><path class="ink" d="M190 240 Q192 204 160 188 Q142 182 130 186 L136 204 Q160 214 164 240 Z" fill="#5a1f35"></path><path d="M66 200 Q100 216 134 200" stroke="#c43c5c" stroke-width="2.5" fill="none"></path><circle class="ink" cx="66" cy="200" r="6" fill="#c43c5c"></circle><circle class="ink" cx="134" cy="200" r="6" fill="#c43c5c"></circle><path class="ink" d="M84 140 Q84 170 82 188 L118 188 Q116 170 116 140 Z" fill="#eccbb5"></path><path d="M84 148 Q100 168 116 148 L116 164 Q100 176 84 164 Z" fill="rgba(80,30,20,.2)"></path></g><g transform="translate(100 98)"><g class="head"><ellipse class="ink" cx="-42" cy="4" rx="7" ry="12" fill="#eccbb5"></ellipse><ellipse class="ink" cx="42" cy="4" rx="7" ry="12" fill="#eccbb5"></ellipse><path d="M-43 -2 Q-38 4 -42 12 M43 -2 Q38 4 42 12" stroke="rgba(110,50,40,.4)" stroke-width="1.4" fill="none"></path><path class="ink" d="M-41 -8 Q-42 -54 0 -54 Q42 -54 41 -8 Q41 22 28 40 Q14 56 0 56 Q-14 56 -28 40 Q-41 22 -41 -8 Z" fill="#eccbb5"></path><path d="M16 -50 Q41 -40 41 -8 Q41 22 28 40 Q16 54 4 55 Q26 30 25 -8 Q24 -34 16 -50 Z" fill="rgba(120,50,40,.13)"></path><path d="M-38 -22 Q0 -36 38 -22 L38 -14 Q0 -28 -38 -14 Z" fill="rgba(80,30,20,.14)"></path><ellipse cx="-24" cy="20" rx="8" ry="4.5" fill="rgba(230,110,100,.17)"></ellipse><ellipse cx="24" cy="20" rx="8" ry="4.5" fill="rgba(230,110,100,.17)"></ellipse><path d="M-14 30 Q-17 36 -14 42 M14 30 Q17 36 14 42 M-25 13 Q-18 16 -10 13 M25 13 Q18 16 10 13" stroke="rgba(110,50,40,.2)" stroke-width="1.2" fill="none"></path><g transform="translate(0 6)"><g class="eyes"><g transform="translate(-17 0) scale(-1 1)"><path d="M-10 1 Q-1 -8 11 -1 Q2 6 -10 1 Z" fill="#fbf7f0"></path><circle cx="0.5" cy="-0.5" r="5.4" fill="#8a2a3a"></circle><path d="M-4.9 -2.8 A5.4 5.4 0 0 1 5.9 -2.8 Z" fill="rgba(0,0,0,.28)"></path><circle cx="0.5" cy="-0.5" r="2.5" fill="#120c10"></circle><circle cx="-1.6" cy="-2.6" r="1.5" fill="#fff"></circle><circle cx="2.6" cy="1.6" r=".7" fill="rgba(255,255,255,.7)"></circle><path d="M-12 -12 L13 -12 L13 -5 Q2 -4.5 -12 1.2 Z" fill="#eccbb5"></path><path d="M-11 1.2 Q2 -4.5 12 -5" fill="none" stroke="#2a1a18" stroke-width="2.4" stroke-linecap="round"></path><path d="M10 -2 L14.6 -5.2 M7.6 -4.8 L11.2 -8.6" stroke="#2a1a18" stroke-width="1.6" stroke-linecap="round"></path><path d="M-8 3.6 Q1 6.4 9 2.2" fill="none" stroke="rgba(90,40,30,.38)" stroke-width="1.1"></path></g><g transform="translate(17 0) scale(1 1)"><path d="M-10 1 Q-1 -8 11 -1 Q2 6 -10 1 Z" fill="#fbf7f0"></path><circle cx="0.5" cy="-0.5" r="5.4" fill="#8a2a3a"></circle><path d="M-4.9 -2.8 A5.4 5.4 0 0 1 5.9 -2.8 Z" fill="rgba(0,0,0,.28)"></path><circle cx="0.5" cy="-0.5" r="2.5" fill="#120c10"></circle><circle cx="-1.6" cy="-2.6" r="1.5" fill="#fff"></circle><circle cx="2.6" cy="1.6" r=".7" fill="rgba(255,255,255,.7)"></circle><path d="M-12 -12 L13 -12 L13 -5 Q2 -4.5 -12 1.2 Z" fill="#eccbb5"></path><path d="M-11 1.2 Q2 -4.5 12 -5" fill="none" stroke="#2a1a18" stroke-width="2.4" stroke-linecap="round"></path><path d="M10 -2 L14.6 -5.2 M7.6 -4.8 L11.2 -8.6" stroke="#2a1a18" stroke-width="1.6" stroke-linecap="round"></path><path d="M-8 3.6 Q1 6.4 9 2.2" fill="none" stroke="rgba(90,40,30,.38)" stroke-width="1.1"></path></g></g></g><g transform="translate(-17 6) scale(-1 1)"><path d="M-9 -8 Q2 -13 15 -17" stroke="#131014" stroke-width="4.2" stroke-linecap="round" fill="none"></path></g><g transform="translate(17 6) scale(1 1)"><path d="M-9 -8 Q2 -13 15 -17" stroke="#131014" stroke-width="4.2" stroke-linecap="round" fill="none"></path></g><path d="M3 12 Q8 22 3 27 L6 26 Q10 20 3 12 Z" fill="rgba(110,50,40,.2)"></path><path d="M3 10 Q6 22 1 26 Q-2 27 -6 25" stroke="rgba(100,45,35,.6)" stroke-width="1.8" fill="none" stroke-linecap="round"></path><path class="ink" d="M-46 6 Q-52 -62 0 -64 Q52 -62 46 6 Q42 -28 26 -38 Q10 -14 -18 -28 Q-34 -14 -46 6 Z" fill="#1f1a22"></path><path class="ink" d="M-46 -6 Q-54 44 -42 82 L-34 80 Q-42 34 -38 -6 Z M46 -6 Q54 44 42 82 L34 80 Q42 34 38 -6 Z" fill="#1f1a22"></path><path d="M-30 -46 Q-16 -56 0 -56 M12 -54 Q24 -52 32 -44" stroke="rgba(255,255,255,.3)" stroke-width="2.6" fill="none" stroke-linecap="round"></path><g transform="translate(0 37)"><g class="m-closed"><path d="M-10 3 Q0 -2 10 3" fill="none" stroke="#8a3a36" stroke-width="2.4" stroke-linecap="round"></path></g><path class="m-open1" d="M-9 -1 Q0 2 9 -1 Q0 8 -9 -1 Z" fill="#5a2028" stroke="#8a3a36" stroke-width="1.4"></path><g class="m-open2"><path d="M-10 -2 Q0 1 10 -2 Q0 13 -10 -2 Z" fill="#5a2028" stroke="#8a3a36" stroke-width="1.4"></path><path d="M-7 -0.6 Q0 1.6 7 -0.6" stroke="#f4eee4" stroke-width="2" fill="none"></path></g></g></g></g></g></svg>

@@ -1,0 +1,31 @@
+/* ===== Pixel sprites =====
+   Each pose is a set of frames (<g class="fr">) shown one at a time. figure.tsx gives every
+   frame an inline `animation` with its own delay, so these keyframes only flip visibility.
+   Whole-body reactions move in whole sprite pixels (5 artboard units) with step timing. */
+.figure, .bust { display: block; overflow: visible; shape-rendering: crispEdges; }
+.figure.left { transform: scaleX(-1); }
+.figure .fr { visibility: hidden; }
+@keyframes fl2 { 0% { visibility: visible; } 50% { visibility: hidden; } }
+@keyframes fl4 { 0% { visibility: visible; } 25% { visibility: hidden; } }
+@keyframes frShow { from, to { visibility: visible; } }
+
+.figure.pose-hit .fig-root { animation: recoil .45s step-end; }
+.figure.pose-dodge .fig-root { animation: sidestep .6s step-end; }
+.figure.pose-die .fig-root { animation: recoil .3s step-end; }
+@keyframes recoil { 0% { transform: translateX(-15px); } 35% { transform: translateX(-5px); } 70% { transform: none; } }
+@keyframes sidestep { 0% { transform: translateX(-10px); } 15% { transform: translate(-25px, -5px); } 65% { transform: translateX(-10px); } 85% { transform: none; } }
+
+/* ===== Pixel portraits: blink and lip-sync overlays ===== */
+.bust .ov { visibility: hidden; }
+.bust .blinkf { animation: blinkf 5s step-end infinite; animation-delay: var(--blink-delay, 0s); }
+.bust.talking .m1 { animation: m1 .42s step-end infinite; }
+.bust.talking .m2 { animation: m2 .42s step-end infinite; }
+.bust.still .ov { animation: none; }
+@keyframes blinkf { 0% { visibility: hidden; } 95% { visibility: visible; } 98% { visibility: hidden; } }
+@keyframes m1 { 0% { visibility: hidden; } 25% { visibility: visible; } }
+@keyframes m2 { 0% { visibility: hidden; } 50% { visibility: visible; } 75% { visibility: hidden; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .figure .fr, .figure .fig-root, .bust .ov { animation: none !important; }
+  .figure .fr.rest { visibility: visible; }
+}
