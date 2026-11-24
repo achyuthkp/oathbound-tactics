@@ -15,7 +15,7 @@ export function ProfileView({ profile: p, children }: { profile: Profile; childr
   const look = lookFor(u);
   const build = buildFor(u);
   const play = (next: Pose) => { setPose(next); setN(x => x + 1); };
-  const poses: [Pose, string][] = [['idle', 'Idle'], ['walk', 'Walk'], [attackPose(weapon), 'Attack'], ['hit', 'Hit'], ['dodge', 'Dodge']];
+  const poses: [Pose, string][] = [['idle', 'Idle'], ['walk', 'Walk'], [attackPose(weapon), 'Attack'], ['hit', 'Hit'], ['dodge', 'Dodge'], ['victory', 'Victory'], ['wounded', 'Wounded'], ['rest', 'Rest'], ['healed', 'Healed'], ['levelup', 'Level up']];
 
   return (
     <div className="profile">

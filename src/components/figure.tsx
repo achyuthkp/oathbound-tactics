@@ -10,7 +10,13 @@ import { Canvas, Px, mix, shade, tint, type PxPath } from './pixel';
  * Poses are frame animations: each frame is a <g> shown in turn by the step keyframes in
  * src/figure.css. Sprites face right; `facing="left"` mirrors the whole SVG.
  */
-export type Pose = 'idle' | 'walk' | 'talk' | 'slash' | 'thrust' | 'chop' | 'shoot' | 'cast' | 'hit' | 'dodge' | 'die';
+export type Pose = 'idle' | 'walk' | 'talk' | 'slash' | 'thrust' | 'chop' | 'shoot' | 'cast' | 'hit' | 'dodge' | 'die'
+  | 'victory' | 'wounded' | 'sit' | 'rest' | 'healed' | 'levelup';
+
+/** Every pose that is not a class attack, in model-sheet order. */
+export const SCENARIO_POSES: Pose[] = ['victory', 'wounded', 'sit', 'rest', 'healed', 'levelup'];
+/** Standing pose for a unit's condition: badly hurt units (a third of their HP or less) stand wounded. */
+export const standPose = (hp: number, max: number): Pose => (hp * 3 <= max ? 'wounded' : 'idle');
 
 export function attackPose(w?: WeaponType): Pose {
   switch (w) {
@@ -160,20 +166,63 @@ const HAIR: Record<HairStyle, { rows: string[]; dx?: number; dy?: number }> = {
 };
 const CROWN = ['..g.g.g.g..', '..ggggggg..'];
 
-const HORSE_HEAD = ['.c....', 'ccc...', 'ccecc.', 'cccccc', '..cccc'];
-const WING_UP = [
-  'W.........',
-  'WW........',
-  'WWWL......',
-  '.WWWL.....',
-  '.WWWWL....',
-  '..WWWWL...',
-  '..WWWWWL..',
-  '...WWWWWL.',
-  '....WWWWW.',
-  '......WWW.',
+/* Mount parts. c coat, l sheen, C belly shadow, m mane, k bridle, w blaze, e eye, n nostril. */
+const HORSE_BODY = [
+  '...cccccccccccccc...',
+  '.ccllllllccccccccccc',
+  'ccclllllcccccccccccc',
+  'cccccccccccccccccccc',
+  'cccccccccccccccccccc',
+  'cccccccccccccccccccc',
+  '.cCCCcccccccccCCCcc.',
+  '..CCCCCCCCCCCCCCC...',
 ];
-const WING_DOWN = ['WWW.......', 'LWWWWW....', '.LWWWWWWW.', '..LLWWWWWW', '....LLWWW.'];
+/** Faces right; the poll (where the neck joins) is the left edge of row 3. */
+const HORSE_HEAD = [
+  '.m.c....',
+  'mccc....',
+  'cccecc..',
+  'cckwccc.',
+  '.cckwccc',
+  '..ckccnc',
+  '...cccc.',
+];
+/** Wing beat: raised, level, lowered. W feather, L feather shadow. */
+const WINGS = [
+  [
+    'W...........',
+    'WW..........',
+    'WWW.L.......',
+    'LWWW.WL.....',
+    '.WWWWLWL....',
+    '.LWWWWLWW...',
+    '..WWWWWLWW..',
+    '..LWWWWWWWW.',
+    '...WWWWWWWWW',
+    '....LWWWWWWW',
+    '......LLWWWW',
+    '.........WWW',
+  ],
+  [
+    '......LWWWWW..',
+    '...LWWWWWWWWW.',
+    '.WWWWWWWWWWWWW',
+    'WWWLWWLWWWWWWW',
+    '.LL.LW.LWWWWW.',
+    '.....L..LLWW..',
+  ],
+  [
+    '.....WWWWWW',
+    '...WWWWWWWW',
+    '..WWWWWWWW.',
+    '.WWWLWWWW..',
+    '.WWLWWWL...',
+    'WWL.WWL....',
+    'WL..WL.....',
+    'W...W......',
+  ],
+];
+const WING_AT: V[] = [[3, 9], [1, 17], [4, 20]];
 
 /* ---------- weapons: drawn from the hand `h` along direction `d` ---------- */
 
@@ -217,64 +266,99 @@ const BOW_ARC: V[] = [[-2, -5], [-1, -4], [-1, -3], [0, -2], [0, -1], [0, 0], [0
 /* ---------- mount ---------- */
 
 const WING_PAL = { W: '#f7f5f0', L: '#c9d2e0' };
+const WING_FAR = { W: '#d3d8e2', L: '#aab4c6' };
+const TACK = '#3a2416';
+const HOOF = '#2a2420';
 function mountColours(build: Build) {
   const pegasus = build.mount === 'pegasus';
   const coat = build.coat ?? (pegasus ? '#eeeae2' : '#4a3020');
-  return { pegasus, coat, mane: build.mane ?? (pegasus ? '#cfd8e6' : '#1e140c'), far: shade(coat, 0.28) };
+  const mane = build.mane ?? (pegasus ? '#cfd8e6' : '#1e140c');
+  const far = shade(coat, 0.28);
+  const head = { c: coat, m: mane, k: TACK, w: pegasus ? coat : '#f1ede4', e: '#1a1a1a', n: shade(coat, 0.5) };
+  return { pegasus, coat, mane, far, head, body: { c: coat, l: tint(coat, 0.16), C: far } };
 }
 
 /** A horse or pegasus collapsed on its side, head to the right, lying on the ground row. `ox` = rump. */
 function drawDeadMount(c: Canvas, build: Build, ox: number) {
-  const { pegasus, coat, mane, far } = mountColours(build);
-  const hoof = '#2a2420';
+  const { pegasus, coat, mane, far, head } = mountColours(build);
   c.layer(l => {
-    l.line(ox + 15, 30, ox + 22, 30, far, 2); l.rect(ox + 24, 30, 1, 2, hoof);
-    l.line(ox + 1, 30, ox - 4, 30, far, 2); l.rect(ox - 5, 30, 1, 2, hoof);
+    l.line(ox + 15, 30, ox + 22, 30, far, 2); l.rect(ox + 24, 30, 1, 2, HOOF);
+    l.line(ox + 1, 30, ox - 4, 30, far, 2); l.rect(ox - 5, 30, 1, 2, HOOF);
   });
-  if (pegasus) c.layer(l => l.stamp(WING_UP, ox - 2, 13, WING_PAL)); // one limp wing still raised
+  if (pegasus) c.layer(l => l.stamp(WINGS[0], ox - 4, 11, WING_PAL)); // one limp wing still raised
   c.layer(l => {
     l.line(ox + 2, 25, ox - 2, 29, mane, 2);
     l.rect(ox + 5, 22, 9, 1, coat);
     l.rect(ox + 3, 23, 13, 9, coat);
     l.rect(ox + 2, 24, 15, 7, coat);
+    l.rect(ox + 4, 23, 6, 1, tint(coat, 0.16));
     l.rect(ox + 3, 31, 13, 1, far);
-    l.line(ox + 15, 24, ox + 21, 28, coat, 3);
-    l.stamp(HORSE_HEAD, ox + 23, 27, { c: coat, e: coat });
-    l.rect(ox + 25, 29, 2, 1, hoof); // closed eye
-    l.line(ox + 15, 23, ox + 22, 27, mane);
+    l.line(ox + 15, 24, ox + 20, 27, coat, 4);
+    l.stamp(HORSE_HEAD, ox + 22, 25, { ...head, e: HOOF, w: coat });
+    l.line(ox + 15, 23, ox + 21, 26, mane, 2);
     l.rect(ox + 6, 23, 6, 4, '#5a2a20');
+    l.rect(ox + 8, 27, 1, 4, TACK);
   });
   c.layer(l => {
-    l.line(ox + 12, 28, ox + 16, 30, coat, 2); l.rect(ox + 18, 30, 1, 2, hoof);
-    l.line(ox + 3, 28, ox + 7, 30, coat, 2); l.rect(ox + 9, 30, 1, 2, hoof);
+    l.line(ox + 12, 28, ox + 16, 30, coat, 2); l.rect(ox + 18, 30, 1, 2, HOOF);
+    l.line(ox + 3, 28, ox + 7, 30, coat, 2); l.rect(ox + 9, 30, 1, 2, HOOF);
   });
   for (const [x, y] of [[13, 25], [14, 26], [12, 26], [15, 25], [13, 27], [14, 28]]) c.set(ox + x, y, BLOOD);
 }
 
-function drawMount(c: Canvas, build: Build, gait: number, gy: number) {
-  const { pegasus, coat, mane, far } = mountColours(build);
-  // foot offsets for hind / fore legs: standing, stretched, gathered
-  const [hind, fore] = gait === 1 ? [-3, 3] : gait === 2 ? [2, -2] : [0, 0];
-  const leg = (l: Canvas, hip: number, foot: number, col: string, lift: number) => {
-    const end = 31 - lift;
-    for (let r = 24 + gy; r < end; r++) l.rect(Math.round(hip + ((foot - hip) * (r - 24 - gy)) / (end - 24 - gy)), r, 2, 1, col);
-    l.rect(foot, end, 2, 1, '#2a2420');
+/** knee dx, knee row, hoof dx, hoof row (dx from the hip; row 31 is the ground) */
+type LegPose = [number, number, number, number];
+/** [hind, fore] for: 0 standing, 1-4 the gallop cycle, 5 tucked in flight, 6 rearing. */
+const GAITS: [LegPose, LegPose][] = [
+  [[0, 28, 0, 31], [0, 28, 0, 31]],
+  [[-2, 28, -5, 30], [3, 27, 6, 29]],
+  [[-1, 27, -3, 29], [2, 28, 2, 31]],
+  [[2, 28, 3, 30], [1, 27, -2, 29]],
+  [[1, 28, 1, 31], [2, 26, 0, 28]],
+  [[2, 27, -1, 29], [2, 27, -1, 29]],
+  [[0, 28, 0, 31], [3, 26, 5, 28]],
+];
+
+interface MountPose { gait: number; tail: number; head: number; wing: number; }
+
+function drawMount(c: Canvas, build: Build, accent: string, m: MountPose, gy: number) {
+  const { pegasus, coat, mane, far, head, body } = mountColours(build);
+  const leg = (l: Canvas, hip: number, [kx, ky, hx, hy]: LegPose, col: string) => {
+    const knee = Math.min(29, ky + gy), hoof = hy === 31 ? 31 : Math.min(31, hy + gy);
+    l.line(hip, 24 + gy, hip + kx, knee, col, 3);
+    l.line(hip + kx, knee + 1, hip + hx, hoof - 1, col, 2);
+    l.rect(hip + hx, hoof, 2, 1, HOOF);
   };
-  c.layer(l => { leg(l, 10, 10 + hind + 1, far, gait === 2 ? 1 : 0); leg(l, 17, 17 + fore + 1, far, gait === 1 ? 1 : 0); });
+  const near = GAITS[m.gait];
+  const farLegs = GAITS[m.gait >= 1 && m.gait <= 4 ? (m.gait % 4) + 1 : m.gait]; // the far pair runs a beat ahead
+  const poll: V = ([[24, 13], [25, 18], [25, 25]] as V[])[m.head];
+
+  if (pegasus) c.layer(l => l.stamp(WINGS[m.wing], WING_AT[m.wing][0] + 3, WING_AT[m.wing][1] - 1 + gy, WING_FAR));
+  c.layer(l => { leg(l, 9, farLegs[0], far); leg(l, 18, farLegs[1], far); });
   c.layer(l => {
-    l.line(5, 21 + gy, 3, 27 + gy, mane, 2);
-    leg(l, 8, 8 + hind, coat, gait === 1 ? 1 : 0);
-    leg(l, 19, 19 + fore, coat, gait === 2 ? 1 : 0);
-    l.rect(7, 20 + gy, 14, 6, coat);
-    l.rect(6, 21 + gy, 16, 4, coat);
-    l.rect(8, 25 + gy, 12, 1, far);
-    l.line(20, 21 + gy, 23, 16 + gy, coat, 3);
-    l.stamp(HORSE_HEAD, 23, 11 + gy, { c: coat, e: '#1a1a1a' });
-    l.line(19, 20 + gy, 23, 13 + gy, mane);
-    l.line(20, 20 + gy, 23, 14 + gy, mane);
-    l.rect(11, 19 + gy, 6, 3, '#5a2a20');
+    // tail: hanging, mid-swish, streaming behind
+    const tail: V[] = ([[[1, 22], [1, 27]], [[0, 22], [-1, 27]], [[-2, 19], [-5, 21]]] as V[][])[m.tail];
+    l.line(2, 19 + gy, tail[0][0], tail[0][1] + gy, mane, 2);
+    l.line(tail[0][0], tail[0][1] + gy, tail[1][0], tail[1][1] + gy, mane, 2);
+    l.line(tail[0][0], tail[0][1] + 1 + gy, tail[1][0], tail[1][1] + gy, shade(mane, 0.3));
+    leg(l, 7, near[0], coat);
+    leg(l, 20, near[1], coat);
+    l.stamp(HORSE_BODY, 3, 18 + gy, body);
+    l.line(18, 18 + gy, poll[0] - 3, poll[1] - 2 + gy, coat, 4);
+    l.stamp(HORSE_HEAD, poll[0] - 1, poll[1] - 3 + gy, head);
+    l.line(17, 17 + gy, poll[0] - 4, poll[1] - 3 + gy, mane, 2);
+    l.line(18, 18 + gy, poll[0] - 4, poll[1] - 1 + gy, shade(mane, 0.3));
   });
-  if (pegasus) c.layer(l => (gait === 2 ? l.stamp(WING_DOWN, 2, 18 + gy, WING_PAL) : l.stamp(WING_UP, 3, 10 + gy, WING_PAL)));
+  c.layer(l => {
+    l.rect(9, 18 + gy, 9, 4, accent);
+    l.rect(9, 21 + gy, 9, 1, shade(accent, 0.35));
+    l.rect(10, 17 + gy, 7, 2, '#5a2a20');
+    l.rect(9, 16 + gy, 2, 1, '#5a2a20');
+    l.set(16, 16 + gy, '#5a2a20');
+  });
+  c.rect(13, 23 + gy, 1, 3, TACK);
+  if (m.head < 2) c.line(17, 17 + gy, poll[0] + 2, poll[1] + 1 + gy, TACK);
+  if (pegasus) c.layer(l => l.stamp(WINGS[m.wing], WING_AT[m.wing][0], WING_AT[m.wing][1] + gy, WING_PAL));
 }
 
 /* ---------- one frame ---------- */
@@ -292,8 +376,28 @@ interface Fr {
   back?: V;
   mouth?: boolean;
   hurt?: boolean;
-  fx?: 'swoosh' | 'glow' | 'nock' | 'draw';
+  fx?: 'swoosh' | 'glow' | 'nock' | 'draw' | 'heal' | 'stars' | 'dash';
+  /** Step of a multi-frame effect (motes rising, stars spreading). */
+  phase?: number;
+  /** Eyes squeezed into a smile. */
+  smile?: boolean;
+  /** Move the whole sprite by this many pixels (a hop or a leap back). */
+  shift?: V;
+  /** Mount: leg pose (see GAITS), tail (0 hang, 1 swish, 2 stream), head (0 up, 1 drooping, 2 grazing), wing beat (0..2). */
   gait?: number;
+  tail?: number;
+  head?: number;
+  wing?: number;
+  /** A flying mount stands on the ground with wings folded. */
+  land?: boolean;
+  /** The mount rears up on its hind legs. */
+  rear?: boolean;
+  /** Head hangs forward by this many pixels. */
+  droop?: number;
+  /** The back hand comes across the chest, over a bleeding wound. */
+  clutch?: boolean;
+  /** Seated on the ground, weapon set aside. */
+  sit?: boolean;
   /** Blood sprays from the chest. */
   blood?: boolean;
   /** Knees (or the mount's legs) buckle by this many pixels. */
@@ -338,18 +442,19 @@ function drawFallen(look: Look, build: Build, weapon: WeaponType | undefined, st
 
 function drawFrame(look: Look, build: Build, weapon: WeaponType | undefined, f: Fr, part?: 'mount'): Canvas {
   if (f.fall) return drawFallen(look, build, weapon, f.fall);
+  if (f.sit) { weapon = undefined; build = { ...build, mount: undefined }; }
   const c = new Canvas();
   const { skin, hair, cloth, accent } = look;
   const armored = build.outfit === 'armor';
   const robe = build.outfit === 'robe';
   const mounted = !!build.mount;
-  const flying = build.mount === 'pegasus';
+  const flying = build.mount === 'pegasus' && !f.land;
   const bob = f.bob ?? 0;
-  const gait = f.gait ?? (flying && bob ? 2 : 0);
+  const gait = f.gait ?? (flying ? 5 : 0);
   const sink = f.sink ?? 0;
-  const gy = (flying ? -2 + bob : gait === 2 ? -1 : 0) + (mounted ? sink : 0);
+  const gy = (flying ? -4 + bob : gait === 1 ? -1 : 0) + (mounted ? sink : 0);
   const ux = (mounted ? -1 : 0) + (f.lean ?? 0);
-  const uy = mounted ? gy - 6 + (flying ? 0 : bob) : bob + sink;
+  const uy = mounted ? gy - 7 + (flying ? 0 : bob) : bob + sink;
   const sleeve = build.outfit === 'leather' ? skin : armored ? STEEL : cloth;
   const torso = armored ? STEEL : cloth;
   const legs = armored ? STEEL_D : build.pants;
@@ -380,7 +485,7 @@ function drawFrame(look: Look, build: Build, weapon: WeaponType | undefined, f: 
     l.rect(foot - 1, end + 1, 4, 2, build.boots);
   };
 
-  if (mounted) drawMount(c, build, gait, gy);
+  if (mounted) drawMount(c, build, accent, { gait, tail: f.tail ?? 0, head: f.head ?? 0, wing: f.wing ?? (f.land ? 2 : 0) }, gy);
   if (part === 'mount') return c;
 
   if (build.outfit === 'cape') {
@@ -402,9 +507,13 @@ function drawFrame(look: Look, build: Build, weapon: WeaponType | undefined, f: 
     });
   }
 
-  if (weapon !== 'bow') c.layer(backArm);
+  if (weapon !== 'bow' && !f.clutch) c.layer(backArm);
 
-  if (!mounted && !robe) {
+  if (f.sit && !robe) {
+    // one knee up, the other leg stretched out along the ground
+    c.layer(l => { l.line(14, 28, 17, 25, shade(legs, 0.25), 3); l.line(19, 27, 19, 29, shade(legs, 0.25), 2); l.rect(19, 30, 4, 2, build.boots); });
+    c.layer(l => { l.rect(15, 29, 8, 3, legs); l.rect(23, 28, 3, 4, build.boots); });
+  } else if (!mounted && !robe) {
     c.layer(l => leg(l, 13, 13 + feet[0], feet[1], shade(legs, 0.25)));
     c.layer(l => leg(l, 17, 17 + feet[2], feet[3], legs));
   }
@@ -429,14 +538,19 @@ function drawFrame(look: Look, build: Build, weapon: WeaponType | undefined, f: 
     }
   });
 
+  if (f.clutch) for (const [x, y] of [[14, 2], [15, 3], [14, 4], [16, 4], [15, 5]]) c.set(x + ux, ty + y, BLOOD);
+
   if (mounted) {
+    // the rider's near leg hangs down the mount's flank into a stirrup
     c.layer(l => {
-      l.line(14 + ux, 19 + uy, 16 + ux, 22 + uy, legs, 3);
-      l.rect(16 + ux, 25 + uy, 4, 2, build.boots);
+      l.line(13, 17 + gy, 15, 20 + gy, legs, 3);
+      l.line(16, 22 + gy, 16, 23 + gy, legs, 2);
+      l.rect(16, 24 + gy, 4, 2, build.boots);
+      l.set(15, 25 + gy, STEEL_D); l.set(20, 25 + gy, STEEL_D);
     });
   }
 
-  const hx = 10 + ux, hy = 8 + uy;
+  const hx = 10 + ux + (f.droop ?? 0), hy = 8 + uy + (f.droop ?? 0);
   c.layer(l => {
     l.stamp(FACE, hx, hy, pal);
     if (look.stubble) l.stamp(STUBBLE, hx, hy, { b: mix(skin, hair, 0.35) });
@@ -445,14 +559,15 @@ function drawFrame(look: Look, build: Build, weapon: WeaponType | undefined, f: 
       l.set(hx + 5, hy + 5, skin); l.set(hx + 8, hy + 5, skin);
       l.set(hx + 4, hy + 6, pal.e); l.set(hx + 7, hy + 6, pal.e);
     }
+    if (f.smile) { l.set(hx + 5, hy + 6, skin); l.set(hx + 8, hy + 6, skin); }
     const style = HAIR[look.style];
     l.stamp(style.rows, hx + (style.dx ?? 0), hy + (style.dy ?? 0), pal);
     if (look.crown) l.stamp(CROWN, hx, hy - 2, pal);
     if (f.mouth || f.hurt) l.rect(hx + 6, hy + 8, 2, 1, '#7a2c30');
   });
 
+  if (weapon === 'bow' || f.clutch) c.layer(backArm);
   if (weapon === 'bow') {
-    c.layer(backArm);
     c.layer(l => {
       const [x, y] = hand;
       const string = '#efe6cc';
@@ -486,30 +601,74 @@ function drawFrame(look: Look, build: Build, weapon: WeaponType | undefined, f: 
     const [ox, oy] = at(hand, d, 9);
     for (const [dx, dy] of [[-3, 0], [3, 0], [0, -3], [0, 3], [-2, -2], [2, -2], [-2, 2], [2, 2]]) c.set(ox + dx, oy + dy, '#9fe0ff');
   }
+  const phase = f.phase ?? 0;
+  if (f.fx === 'heal') {
+    // green motes drifting up around the body
+    for (const [x, y] of [[8, 27], [23, 24], [11, 17], [24, 14], [18, 9], [7, 12]]) {
+      const py = y + uy - phase * 2;
+      c.rect(x - 1, py, 3, 1, '#7dffa0'); c.rect(x, py - 1, 1, 3, '#7dffa0'); c.set(x, py, '#eafff0');
+    }
+  }
+  if (f.fx === 'stars') {
+    // a ring of gold sparks spreading outward and an arrow climbing over the head
+    const gold = '#ffd84a', r = 7 + phase * 2;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0.7, -0.7], [-0.7, -0.7], [0.7, 0.7], [-0.7, 0.7]]) {
+      const x = Math.round(15 + ux + dx * r), y = Math.round(18 + uy + dy * r);
+      c.rect(x - 1, y, 3, 1, gold); c.rect(x, y - 1, 1, 3, gold); c.set(x, y, '#fff6c8');
+    }
+    const ax = 15 + ux, ay = hy - 8 - phase;
+    c.rect(ax, ay, 1, 6, gold); c.rect(ax - 1, ay + 1, 3, 1, gold); c.rect(ax - 2, ay + 2, 5, 1, gold);
+  }
+  if (f.rear) return c.rotated(24, 8, 31);
   if (f.blood) {
     for (const [x, y] of [[15, 21], [16, 22], [15, 23], [19, 20], [20, 20], [21, 19], [22, 21], [23, 21], [20, 23], [23, 18], [24, 17], [24, 22], [21, 24], [25, 20], [26, 23]]) c.set(x + ux, y + uy, BLOOD);
     c.set(16 + ux, 21 + uy, BLOOD_D);
   }
-  return c;
+  const out = f.shift ? c.rotated(0, 0, 0, f.shift[0], f.shift[1]) : c;
+  // speed lines left where the body was a moment ago
+  if (f.fx === 'dash') for (const [x, y, n] of [[19, 13, 6], [21, 18, 7], [19, 23, 6], [22, 27, 4]]) out.rect(x + ux, y + uy, n, 1, '#dfe9ff');
+  return out;
 }
 
 /* ---------- poses ---------- */
 
 function framesFor(pose: Pose, mounted: boolean, flying: boolean): { frames: Fr[]; loop?: number } {
   const lunge: Fr['feet'] = [-1, 0, 2, 0];
+  const beat = [0, 1, 2, 1]; // wing beat: up, level, down, level
   let frames: Fr[];
   switch (pose) {
-    case 'idle': return { frames: [{}, { bob: 1 }], loop: flying ? 0.6 : 1.2 };
+    case 'idle':
+      if (flying) return { frames: beat.map((wing, i) => ({ wing, bob: i % 2 })), loop: 0.7 };
+      if (mounted) return { frames: [{}, { bob: 1 }, { tail: 1 }, { bob: 1, tail: 1 }], loop: 1.6 };
+      return { frames: [{}, { bob: 1 }], loop: 1.2 };
     case 'talk': return { frames: [{}, { mouth: true }], loop: 0.38 };
     case 'walk':
-      return mounted
-        ? { frames: [{ gait: 1 }, { gait: 2 }], loop: 0.32 }
-        : { frames: [
-          { feet: [-2, 0, 2, 0], back: [1, 4] },
-          { feet: [0, 1, 0, 0], back: [-1, 4], bob: -1 },
-          { feet: [2, 0, -2, 0], back: [-3, 4] },
-          { feet: [0, 0, 0, 1], back: [-1, 4], bob: -1 },
-        ], loop: 0.56 };
+      if (flying) return { frames: beat.map(wing => ({ wing, tail: 2 })), loop: 0.44 };
+      if (mounted) return { frames: [1, 2, 3, 4].map(gait => ({ gait, tail: 2 })), loop: 0.44 };
+      return { frames: [
+        { feet: [-2, 0, 2, 0], back: [1, 4] },
+        { feet: [0, 1, 0, 0], back: [-1, 4], bob: -1 },
+        { feet: [2, 0, -2, 0], back: [-3, 4] },
+        { feet: [0, 0, 0, 1], back: [-1, 4], bob: -1 },
+      ], loop: 0.56 };
+    case 'victory': {
+      // weapon thrust skyward with a glint at its tip; a horse rears, a pegasus beats its wings
+      const up: Fr = { hand: [3, -4], dir: [0, -1] };
+      const cheer: Fr = { hand: [3, -5], dir: [0, -1], mouth: true, fx: 'glow' };
+      if (flying) return { frames: [{ ...up, wing: 0 }, { ...cheer, wing: 2, bob: -1 }], loop: 0.5 };
+      if (mounted) return { frames: [up, { ...cheer, gait: 6, rear: true }], loop: 0.9 };
+      return { frames: [up, { ...cheer, bob: -1 }], loop: 0.5 };
+    }
+    case 'wounded': {
+      // hunched over a bleeding wound, panting; the mount hangs its head
+      const hold: Fr = { droop: 1, clutch: true, back: [5, 3], head: 1 };
+      return { frames: [{ ...hold, bob: 1 }, { ...hold, bob: 2, hurt: true, wing: 1 }], loop: 1 };
+    }
+    case 'sit': return { frames: [{ sit: true, bob: 6 }, { sit: true, bob: 6, droop: 1 }], loop: 2.4 };
+    case 'rest':
+      // turn spent: on one knee; a mount grazes, a pegasus lands and folds its wings
+      if (mounted) return { frames: [{ head: 2, land: true }, { head: 2, land: true, tail: 1 }], loop: 1.2 };
+      return { frames: [{ bob: 3, droop: 1 }] };
     case 'slash':
       frames = [
         { at: 0, hand: [3, -4], dir: [-1, -1], lean: -1 },
@@ -547,10 +706,27 @@ function framesFor(pose: Pose, mounted: boolean, flying: boolean): { frames: Fr[
         { at: 0.64, fall: 3 },
         { at: 0.86, fall: 4 },
       ] };
-    default: return { frames: [{ lean: -1 }] };
+    case 'healed':
+      // eyes closed in relief while green motes rise
+      return { frames: [0, 1, 2, 3].map(phase => ({ fx: 'heal' as const, phase, smile: true, bob: phase % 2 })), loop: 0.8 };
+    case 'levelup': {
+      // a crouch, then a jump with the weapon thrust up, gold sparks and a rising arrow
+      const up: Fr = { hand: [3, -5], dir: [0, -1], back: [-3, -3], smile: true, mouth: true, fx: 'stars' };
+      return { frames: [{ bob: 1, smile: true }, { ...up, shift: [0, -2], phase: 0 }, { ...up, shift: [0, -3], phase: 1 }, { ...up, shift: [0, -1], phase: 2 }], loop: 0.8 };
+    }
+    default:
+      // dodge: dip, spring back out of reach, land, step back in
+      return { frames: [
+        { at: 0, bob: 1, lean: -1 },
+        { at: 0.08, shift: [-5, -2], lean: -1, fx: 'dash' },
+        { at: 0.3, shift: [-5, 0], bob: 1 },
+        { at: 0.55, shift: [-2, 0] },
+        { at: 0.68 },
+      ] };
   }
-  // a mount keeps galloping through its rider's attack
-  return { frames: mounted ? frames.map((f, i) => ({ ...f, feet: undefined, gait: (i % 2) + 1 })) : frames };
+  // a mount keeps charging through its rider's attack
+  if (flying) return { frames: frames.map((f, i) => ({ ...f, feet: undefined, wing: i % 3, tail: 2 })) };
+  return { frames: mounted ? frames.map((f, i) => ({ ...f, feet: undefined, gait: i + 1, tail: 2 })) : frames };
 }
 
 interface Sprite { frames: { paths: PxPath[]; style: CSSProperties }[]; rest: number; }

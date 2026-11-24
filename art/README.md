@@ -15,18 +15,19 @@ Drawn back to front in `drawBust` (`src/components/art.tsx`): back hair / ponyta
 shoulders and costume, head, eyes, front hair or helm, brows, mouth. Three overlay groups hold
 only the pixels that change: `blinkf` (eyes shut), `m1` and `m2` (mouth half open, open).
 
-## models/  (140 files)
+## models/  (260 files)
 
 `<id>-<pose>.svg` for every named character and the 8 generic enemy types. Poses: `idle`,
 `walk`, `talk`, the class attack (`slash`, `thrust`, `chop`, `shoot` or `cast`), `hit`, `dodge`,
-`die`. 32×34 pixels on a 160×170 artboard, feet on row 31, facing right (mirror with
+`die`, `victory`, `wounded`, `sit`, `rest`, `healed`, `levelup`. 32×34 pixels on a 160×170 artboard, feet on row 31, facing right (mirror with
 `scaleX(-1)` for left).
 
-Each file holds one `<g class="fr">` per animation frame (idle 2, walk 4 on foot or 2 mounted,
-talk 2, attacks 3). `drawFrame` in `src/components/figure.tsx` builds a frame from: mount,
+Each file holds one `<g class="fr">` per animation frame (idle 2 on foot or 4 mounted, walk 4,
+talk 2, attacks 3, death 6, the situational poses 1 or 2). Mounted `die` frames are wider than the
+artboard. `drawFrame` in `src/components/figure.tsx` builds a frame from: mount,
 cape or quiver, back arm, legs, torso and outfit, head (`FACE` plus a `HAIR` template), weapon,
-front arm. Head, hair, horse head and wings are ASCII templates in that file; edit them to
-redraw a part.
+front arm. Head, hair, the horse body and head, and the three wing-beat shapes are ASCII templates in that
+file; edit them to redraw a part. Mount leg poses are the `GAITS` table.
 
 ## world-map.svg
 

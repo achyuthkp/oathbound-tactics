@@ -5,7 +5,7 @@ import type { Forecast, Strike } from '../../game/combat';
 import type { TerrainId, Unit } from '../../game/types';
 import { classOf } from '../../game/units';
 import { WeaponIcon } from '../art';
-import { Figure, attackPose, type Pose } from '../figure';
+import { Figure, attackPose, standPose, type Pose } from '../figure';
 import { HpBar } from './parts';
 
 type Role = 'att' | 'def';
@@ -27,7 +27,7 @@ const other = (r: Role): Role => (r === 'att' ? 'def' : 'att');
  */
 export function CombatScene({ att, def, fc, strikes, terrain, onDone }: Props) {
   const leftRole: Role = att.team === 'player' ? 'att' : 'def';
-  const [poses, setPoses] = useState<Record<Role, Pose>>({ att: 'idle', def: 'idle' });
+  const [poses, setPoses] = useState<Record<Role, Pose>>({ att: standPose(att.hp, att.stats.hp), def: standPose(def.hp, def.stats.hp) });
   const [nonce, setNonce] = useState<Record<Role, number>>({ att: 0, def: 0 });
   const [hp, setHp] = useState({ att: att.hp, def: def.hp });
   const [dash, setDash] = useState<Role | null>(null);
@@ -85,8 +85,10 @@ export function CombatScene({ att, def, fc, strikes, terrain, onDone }: Props) {
         setCue(null);
         await wait(300);
         setPop(null);
-        if (foeHp > 0) setPose(foe, 'idle');
-        setPose(who, 'idle');
+        // back to a ready stance (wounded if badly hurt); whoever felled their foe celebrates
+        const stand = (r: Role) => standPose(r === 'att' ? st.attHp : st.defHp, (r === 'att' ? att : def).stats.hp);
+        if (foeHp > 0) setPose(foe, stand(foe));
+        setPose(who, foeHp <= 0 ? 'victory' : stand(who));
         await wait(170);
       }
       const last = strikes[strikes.length - 1];

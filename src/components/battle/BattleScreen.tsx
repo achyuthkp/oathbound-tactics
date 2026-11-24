@@ -628,6 +628,7 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
                   u={u}
                   selected={(mode.kind !== 'idle' && mode.unitId === u.id) || inspect === u.id}
                   targeted={!!targetMode && targetMode.targetId === u.id}
+                  healed={floats.some(f => f.tone === 'heal' && f.x === u.x && f.y === u.y)}
                 />
               ))}
             </div>

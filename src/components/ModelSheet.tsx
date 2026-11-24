@@ -1,7 +1,7 @@
 import { CHARACTERS, buildFor, lookFor } from '../game/data/characters';
 import { CLASSES } from '../game/data/classes';
 import { ALLY_IDS, ARCHETYPES, NPC_IDS, PROFILES } from '../game/data/profiles';
-import { Figure, attackPose, type Pose } from './figure';
+import { Figure, SCENARIO_POSES, attackPose, type Pose } from './figure';
 import { Portrait, type Mood } from './art';
 import { lookById } from '../game/data/characters';
 
@@ -28,7 +28,7 @@ export function ModelSheet() {
         const p = PROFILES[id] ?? ARCHETYPES[id];
         const u = { id, classId: p.classId, lookId: CHARACTERS[id] ? id : undefined };
         const weapon = CLASSES[p.classId].weapons[0];
-        const poses: Pose[] = ['idle', 'walk', 'talk', attackPose(weapon), 'hit', 'dodge', 'die'];
+        const poses: Pose[] = ['idle', 'walk', 'talk', attackPose(weapon), 'hit', 'dodge', 'die', ...SCENARIO_POSES];
         return (
           <section key={id}>
             <h2>{p.name} <small>{p.age}, {CLASSES[p.classId].name}</small></h2>

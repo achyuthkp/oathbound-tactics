@@ -7,7 +7,7 @@ import { STAT_KEYS, STAT_LABEL } from '../../game/types';
 import { canWield, classOf, movOf, wdef, weaponLabel } from '../../game/units';
 import { profileFor } from '../../game/data/profiles';
 import { Portrait, TileArt, WeaponIcon } from '../art';
-import { Figure } from '../figure';
+import { Figure, standPose } from '../figure';
 
 export const TILE = 48;
 
@@ -29,7 +29,7 @@ export function HpBar({ hp, max, big }: { hp: number; max: number; big?: boolean
   return <div className={`hpbar ${big ? 'big' : ''}`}><div className={tone} style={{ width: `${pct}%` }} /></div>;
 }
 
-export function UnitToken({ u, selected, targeted }: { u: Unit; selected: boolean; targeted: boolean }) {
+export function UnitToken({ u, selected, targeted, healed }: { u: Unit; selected: boolean; targeted: boolean; healed?: boolean }) {
   const w = u.weapons[u.equipped];
   return (
     <div
@@ -37,7 +37,7 @@ export function UnitToken({ u, selected, targeted }: { u: Unit; selected: boolea
       style={{ transform: `translate(${u.x * TILE}px, ${u.y * TILE}px)` }}
     >
       <div className="unit-base" />
-      <div className="sprite"><Figure look={lookFor(u)} build={buildFor(u)} weapon={w && wdef(w).type} facing={u.team === 'enemy' ? 'left' : 'right'} size={56} /></div>
+      <div className="sprite"><Figure look={lookFor(u)} build={buildFor(u)} weapon={w && wdef(w).type} pose={healed ? 'healed' : u.done ? 'rest' : standPose(u.hp, u.stats.hp)} facing={u.team === 'enemy' ? 'left' : 'right'} size={56} /></div>
       {w && <span className="unit-weapon"><WeaponIcon type={wdef(w).type} size={13} /></span>}
       {u.isBoss && <span className="boss-mark" title="Boss">♛</span>}
       <HpBar hp={u.hp} max={u.stats.hp} />
@@ -146,6 +146,7 @@ export function LevelUpModal({ view, onClose }: { view: LevelUpView; onClose: ()
     <div className="modal-back" onClick={onClose}>
       <div className="levelup" role="dialog" aria-label="Level up">
         <div className="lu-portrait"><Portrait look={lookFor(view.unit)} size={110} /></div>
+        <Figure look={lookFor(view.unit)} build={buildFor(view.unit)} weapon={view.unit.weapons[view.unit.equipped] && wdef(view.unit.weapons[view.unit.equipped]).type} pose="levelup" size={120} />
         <div>
           <h3>{view.name} reached level {view.level}</h3>
           <div className="lu-stats">

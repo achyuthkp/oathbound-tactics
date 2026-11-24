@@ -634,3 +634,18 @@ kbd { display: inline-block; padding: 1px 6px; border-radius: 3px; border: 1px s
 .ms-prow > span { width: 150px; font: 700 15px var(--display); }
 .ms-prow figure { margin: 0; text-align: center; background: linear-gradient(#26304e, #161d33); border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px 2px; }
 .ms-prow figcaption { font-size: 11px; color: var(--vellum-dim); }
+
+/* ---------------- Sprite browser (#sprites) ---------------- */
+.sb-filters { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: end; padding: 12px 0; background: var(--ink-2, #141a2e); border-bottom: 1px solid var(--line); }
+.sb-filters label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--vellum-dim); }
+.sb-filters .sb-check { flex-direction: row; align-items: center; font-size: 14px; padding-bottom: 6px; }
+.sb-filters select, .sb-filters input[type=search] { font: inherit; font-size: 14px; padding: 5px 8px; border-radius: 4px; border: 1px solid var(--line); background: #0e1322; color: inherit; }
+.sb-filters a { color: var(--gold-hi); padding-bottom: 6px; }
+.sb-count { color: var(--vellum-dim); font-size: 14px; margin: 10px 0; }
+.sb-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.sb-grid figure { margin: 0; background: rgba(26,34,56,.8); border: 1px solid var(--line); border-radius: 4px; padding: 10px 28px 4px; text-align: center; overflow: hidden; }
+.sb-grid figure svg { margin: 0 auto; }
+.sb-grid figcaption { font-size: 12px; color: var(--vellum-dim); }
+.sb-grid figcaption b { display: block; color: inherit; font: 700 13px var(--display); }
+.sb-flip { transform: scaleX(-1); }
+@media (max-width: 700px) { .sb-filters { position: static; } }

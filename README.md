@@ -133,8 +133,26 @@ pixel grid from parts: a head with one of nine hair styles (short, long, tied, s
 rugged, slick, bun), an outfit (cape, armour, robe, leather, hunter, gi, light), limbs, a weapon,
 and a horse or pegasus for mounted classes. Colours come from each character's `Look` plus a
 `Build` derived from their class, so every named character and enemy type has their own sprite.
-Poses (idle, walk, talk, slash, thrust, chop, shoot, cast, hit, dodge, fall) are frame animations
-stepped by the keyframes in `src/figure.css`. The same sprites stand on the battle map.
+Poses (idle, walk, talk, slash, thrust, chop, shoot, cast, hit, dodge, a six-frame bloody death,
+and the situational poses below) are frame animations stepped by the keyframes in
+`src/figure.css`. The same sprites stand on the battle map.
+
+Situational poses: **victory** (weapon raised with a glint; a horse rears, a pegasus beats its
+wings) plays for whoever fells their foe; **wounded** (hunched over a bleeding wound, the mount
+hanging its head) replaces idle at a third of max HP or less, on the map and in combat; **rest**
+(on one knee; a horse grazes, a pegasus lands and folds its wings) marks units that have acted;
+**sit** is used by companions near the campfire; **healed** (eyes closed, green motes rising) plays
+on the map for a unit receiving a heal; **levelup** (a jump with gold sparks and a rising arrow)
+plays in the level-up window. Dodging is a five-frame leap back with speed lines.
+
+Open the game with **`#sprites`** on the end of the URL (or press **Sprites** on the title screen)
+for the sprite browser: every sprite and portrait the game can draw, filterable by type, group,
+character, class, pose or expression, weapon and mount, with search, a size slider, a facing
+toggle and a replay button.
+
+Mounts are drawn in detail: shaded body, bridle, reins, blaze, saddle and blanket in the rider's
+accent colour, a four-beat gallop with a streaming tail, a tail swish at rest, and a three-stage
+wing beat with a far wing behind the body. A fallen mount lies beside its thrown rider.
 
 Dialogue portraits are 40×48 pixel busts that blink, lip-sync while their line types out, and
 change expression (neutral, happy, angry, sad, surprised) line by line; moods are set with
@@ -153,7 +171,7 @@ for a model sheet showing every character in every pose.
 ### Art kit
 
 `npm run export-art` renders every portrait (12 characters × 6 expressions), every full-body
-pose (20 character types × 7 poses) and the world map to standalone SVGs in `art/`, with the
+pose (20 character types × 13 poses) and the world map to standalone SVGs in `art/`, with the
 animation CSS embedded. `art/README.md` documents the sprite grids. The previous vector art is kept in
 `art/legacy-vector/`.
 
@@ -180,6 +198,7 @@ src/
     SaveMenu.tsx        save / load slots
     Profile.tsx         profile viewer with live model preview, Characters codex
     ModelSheet.tsx      #gallery model sheet
+    SpriteBrowser.tsx   #sprites browser: every sprite, with filters
     battle/             map, unit tokens, HUD, details drawer, CombatScene animation
     camp/               CampWorld (walkable scene) and rest-area panels
     Screens.tsx         title, game over, epilogue

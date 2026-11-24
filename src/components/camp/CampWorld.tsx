@@ -395,7 +395,9 @@ export function CampWorld({ roster, chapterIndex, disabled, onInteract }: Props)
             const a = view.actors[u.id];
             if (!a) return null;
             const following = followers.includes(u.id);
-            const pose = speaker === u.id ? 'talk' : a.moving ? 'walk' : 'idle';
+            // companions resting close to the campfire sit down by it
+            const byFire = !following && Math.hypot(a.x - STATIONS[0].x, a.y - STATIONS[0].y) < 215;
+            const pose = speaker === u.id ? 'talk' : a.moving ? 'walk' : byFire ? 'sit' : 'idle';
             return (
               <div
                 key={u.id}

@@ -21,6 +21,7 @@ export function TitleScreen({ canContinue, onNew, onContinue, onLoad }: { canCon
         {canContinue && <button onClick={onLoad}>Load game</button>}
         <button className="ghost" onClick={() => setPanel('codex')}>Characters</button>
         <button className="ghost" onClick={() => setPanel('help')}>How to play</button>
+        <button className="ghost" onClick={() => { window.location.hash = '#sprites'; }}>Sprites</button>
       </div>
       <p className="title-foot">A tactical role-playing game in five chapters.</p>
 

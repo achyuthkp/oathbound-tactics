@@ -13,7 +13,7 @@ import { CHARACTERS, buildFor, lookById, lookFor } from '../src/game/data/charac
 import { CLASSES } from '../src/game/data/classes';
 import { ALLY_IDS, ARCHETYPES, NPC_IDS, PROFILES } from '../src/game/data/profiles';
 import { Portrait, type Mood } from '../src/components/art';
-import { Figure, attackPose, type Pose } from '../src/components/figure';
+import { Figure, SCENARIO_POSES, attackPose, type Pose } from '../src/components/figure';
 import { MapArt, ROUTES } from '../src/components/WorldMap';
 
 const css = readFileSync('src/figure.css', 'utf8');
@@ -41,7 +41,7 @@ for (const id of [...ALLY_IDS, ...NPC_IDS, ...Object.keys(ARCHETYPES)]) {
   const p = PROFILES[id] ?? ARCHETYPES[id];
   const u = { id, classId: p.classId, lookId: CHARACTERS[id] ? id : undefined };
   const weapon = CLASSES[p.classId].weapons[0];
-  const poses: Pose[] = ['idle', 'walk', 'talk', attackPose(weapon), 'hit', 'dodge', 'die'];
+  const poses: Pose[] = ['idle', 'walk', 'talk', attackPose(weapon), 'hit', 'dodge', 'die', ...SCENARIO_POSES];
   for (const pose of poses) {
     write(`art/models/${id}-${pose}.svg`, renderToStaticMarkup(<Figure look={lookFor(u)} build={buildFor(u)} weapon={weapon} pose={pose} size={480} />));
     count++;
