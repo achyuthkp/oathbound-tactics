@@ -29,6 +29,9 @@ const SPOTS: Record<string, { x: number; y: number; face: 'left' | 'right' }> = 
   tomas: { x: 470, y: 590, face: 'right' },
   rei: { x: 360, y: 405, face: 'right' },
   ilse: { x: 960, y: 575, face: 'left' },
+  osric: { x: 800, y: 440, face: 'left' },
+  pip: { x: 1010, y: 520, face: 'left' },
+  sable: { x: 560, y: 610, face: 'right' },
 };
 
 const OBSTACLES = [
@@ -408,13 +411,13 @@ export function CampWorld({ roster, chapterIndex, disabled, onInteract }: Props)
                 aria-label={`Talk to ${u.name}`}
               >
                 <span className="cw-name">{u.name}</span>
-                <Figure look={lookFor(u)} build={buildFor(u, { dismount: true })} weapon={CLASSES[u.classId].weapons[0]} pose={pose} facing={a.facing} size={FIG} />
+                <Figure look={lookFor(u)} build={buildFor(u, { dismount: true })} weapon={CLASSES[u.classId].weapons[0]} weaponId={u.weapons[u.equipped]?.defId} pose={pose} facing={a.facing} size={FIG} />
               </div>
             );
           })}
           {lord && (
             <div className="cw-actor player" style={{ left: view.x - FIG / 2, top: view.y - footY, zIndex: view.y }}>
-              <Figure look={lookFor(lord)} build={buildFor(lord)} weapon="sword" pose={speaker === 'kael' ? 'talk' : view.moving ? 'walk' : 'idle'} facing={view.facing} size={FIG} />
+              <Figure look={lookFor(lord)} build={buildFor(lord)} weapon="sword" weaponId={lord.weapons[lord.equipped]?.defId} pose={speaker === 'kael' ? 'talk' : view.moving ? 'walk' : 'idle'} facing={view.facing} size={FIG} />
             </div>
           )}
           {nearIt && !disabled && !talk && (

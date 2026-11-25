@@ -5,7 +5,7 @@ import { Canvas, INK, Px, mix, shade, tint, type PxPath } from './pixel';
 /* ---------- Weapon icons ---------- */
 
 export const WEAPON_COLOR: Record<WeaponType, string> = {
-  sword: '#7fb4ff', lance: '#ff8a7a', axe: '#8fdc7c', bow: '#e9c86a', staff: '#e7e2ff',
+  sword: '#7fb4ff', lance: '#ff8a7a', axe: '#8fdc7c', bow: '#e9c86a', staff: '#e7e2ff', breath: '#ff9a4a',
 };
 
 export function WeaponIcon({ type, size = 16 }: { type?: WeaponType | null; size?: number }) {
@@ -18,6 +18,7 @@ export function WeaponIcon({ type, size = 16 }: { type?: WeaponType | null; size
       {type === 'lance' && (<g {...common}><line x1="3" y1="21" x2="17" y2="7" /><polygon points="21,3 14.5,5.5 18.5,9.5" fill={c} stroke="none" /></g>)}
       {type === 'axe' && (<g {...common}><line x1="6" y1="21" x2="15" y2="5" /><path d="M12.5 4.5 Q21 3.5 21 12 Q17 9.5 12 10.5 Z" fill={c} stroke="none" /></g>)}
       {type === 'bow' && (<g {...common}><path d="M7 3 Q21 12 7 21" /><line x1="7" y1="3" x2="7" y2="21" strokeWidth={1.2} /><line x1="3" y1="12" x2="18" y2="12" strokeWidth={1.6} /></g>)}
+      {type === 'breath' && (<g {...common}><path d="M12 3 Q19 10 16 17 Q14 21 12 21 Q7 20 7 15 Q7 11 10 9 Q10 13 12 13 Q14 9 12 3 Z" fill={c} stroke="none" /></g>)}
       {type === 'staff' && (<g {...common}><line x1="6" y1="21" x2="15.5" y2="8" /><circle cx="17.5" cy="5.5" r="3" fill={c} stroke="none" /></g>)}
     </svg>
   );
@@ -49,6 +50,7 @@ const HAIRLINE: Record<HairStyle, { fringe: number[]; side: number; top?: number
   rugged: { fringe: [14, 12, 13, 12, 11, 13, 12, 11, 12, 11, 12, 13, 11, 12, 13, 12, 13, 14], side: 23, top: [0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0] },
   hood: { fringe: [12, 12, 11, 11, 11, 10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 12, 12], side: 16 },
   helm: { fringe: new Array(18).fill(13), side: 13 },
+  bandana: { fringe: [15, 13, 14, 13, 12, 14, 13, 12, 13, 12, 13, 14, 12, 13, 14, 13, 14, 15], side: 21 },
 };
 
 const BROWS: Record<Mood, { row: number; dy: number[] }> = {
@@ -117,6 +119,19 @@ function drawBust(look: Look, mood: Mood, v: number): Canvas {
       l.line(15, 36, 19, 42, accent, 2); l.line(23, 36, 19, 42, accent, 2);
       sym(l, 11, 40, 1, 8, accent);
       l.rect(19, 43, 2, 5, GOLD); l.rect(18, 44, 4, 1, GOLD);
+    } else if (outfit === 'cloak') {
+      // a hooded travelling cloak fastened at the throat
+      for (let r = 37; r < 48; r++) l.rect(20 - shoulder(r), r, 2 * shoulder(r), 1, shade(cloth, 0.2));
+      l.line(15, 36, 19, 42, shade(cloth, 0.45), 2); l.line(23, 36, 19, 42, shade(cloth, 0.45), 2);
+      l.rect(18, 37, 4, 3, accent);
+      l.line(8, 40, 14, 47, '#2a2018', 2);
+    } else if (outfit === 'raider') {
+      // bare shoulders under a rough fur mantle, a strap across the chest
+      const fur = '#8a7a66', furD = '#5f5244';
+      for (let r = 37; r < 48; r++) l.rect(20 - shoulder(r), r, 2 * shoulder(r), 1, r < 42 ? fur : cloth);
+      for (let x = 3; x < 37; x += 2) { l.set(x, 42, fur); l.set(x + 1, 38 + (x % 3), furD); }
+      l.line(9, 42, 28, 47, '#3a2416', 2);
+      l.rect(21, 44, 3, 3, '#7a5a34');
     } else if (outfit === 'leather') {
       for (let r = 37; r < 48; r++) sym(l, 23 - shoulder(r), r, shoulder(r) - 7, 1, cloth);
       for (const y of [40, 43, 46]) for (let x = 17; x < 23; x += 2) l.set(x, y, '#d8c8a8');
@@ -185,6 +200,14 @@ function drawBust(look: Look, mood: Mood, v: number): Canvas {
     } else {
       l.rect(14, 8, 5, 1, hairL); l.rect(21, 8, 2, 1, hairL);
     }
+    if (style === 'bandana') {
+      // the wrap covers the crown; ragged hair shows below it and the knot hangs to one side
+      const band = accent, bandD = shade(accent, 0.3);
+      for (let x = 10; x < 30; x++) { const y0 = x < 12 || x > 27 ? 9 : x < 14 || x > 25 ? 7 : 6; l.rect(x, y0, 1, 12 - y0, band); }
+      l.rect(10, 11, 20, 1, bandD);
+      l.rect(13, 8, 4, 1, tint(accent, 0.3));
+      l.rect(29, 9, 3, 3, band); l.rect(30, 12, 1, 5, band); l.rect(32, 11, 1, 4, bandD);
+    }
     if (style === 'spiky') { sym(l, 9, 10, 1, 3, hair); sym(l, 8, 10, 1, 1, hair); sym(l, 9, 14, 1, 2, hair); }
     if (style === 'long') { sym(l, 9, 12, 3, 30, hair); sym(l, 9, 30, 1, 12, hairD); }
     if (style === 'tied') l.rect(10, 17, 1, 6, hair);
@@ -205,6 +228,7 @@ function drawBust(look: Look, mood: Mood, v: number): Canvas {
       l.rect(11, 8, 18, 1, accent);
       sym(l, 10, 9, 1, 26, accent);
     }
+    if (look.horns) { l.line(12, 7, 9, 2, '#e9e2d0', 2); l.line(26, 7, 29, 2, '#e9e2d0', 2); l.set(9, 2, '#cfc4a8'); l.set(30, 2, '#cfc4a8'); }
     if (look.crown) {
       l.rect(13, 5, 14, 2, GOLD);
       for (const x of [13, 19, 25]) l.rect(x, 2, 2, 3, GOLD);
@@ -229,6 +253,13 @@ function drawBust(look: Look, mood: Mood, v: number): Canvas {
   else if (mood === 'angry') { c.rect(17, 27, 6, 1, lip); c.set(16, 28, lip); c.set(23, 28, lip); }
   else if (mood === 'sad') { c.rect(18, 27, 4, 1, lip); c.set(17, 28, lip); c.set(22, 28, lip); }
   else { c.rect(18, 26, 4, 3, dark); c.rect(18, 26, 4, 1, lip); }
+  if (look.mask) {
+    // a cloth pulled up over the nose; the mouth moves behind it, so talking only ripples the cloth
+    const m = shade(cloth, 0.35), fold = shade(cloth, 0.55);
+    for (let r = 24; r <= 30; r++) c.rect(20 - HEAD[r - 8], r, 2 * HEAD[r - 8], 1, m);
+    c.rect(12, 24, 16, 1, fold);
+    c.rect(v === 3 ? 16 : 17, v >= 2 ? 28 : 27, v === 3 ? 8 : 6, 1, fold);
+  }
   return c;
 }
 

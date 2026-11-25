@@ -8,7 +8,7 @@ import { TRAIN_EXP, gainExp } from '../../game/progression';
 import type { Campaign, SupportConvo, SupportPair, Unit } from '../../game/types';
 import { STAT_KEYS, STAT_LABEL } from '../../game/types';
 import {
-  MAX_FORGE, MAX_POTIONS, MAX_WEAPONS, POTION_PRICE, canWield, classOf, forgeCost, makeWeapon, movOf, sellPrice, wdef, weaponLabel,
+  MAX_FORGE, MAX_ITEMS, effectNote, MAX_STONES, PICK_PRICE, PICK_USES, canTake, clone, giveItem, itemCount, maxUses, picksOf, repairCost, type TradeItem, usesLeft, POTION_PRICE, STONE_PRICE, canWield, classOf, forgeCost, makeWeapon, movOf, sellPrice, wdef, weaponLabel,
 } from '../../game/units';
 import { Portrait, WeaponIcon } from '../art';
 import { HpBar } from '../battle/parts';
@@ -36,6 +36,8 @@ export function CampScreen({ campaign: c, onChange, onMarch, onOpenSaveMenu, onT
   const [toast, setToast] = useState<string | null>(null);
   const [convo, setConvo] = useState<{ pair: SupportPair; convo: SupportConvo } | null>(null);
   const [selected, setSelected] = useState<string>(c.roster[0]?.id ?? '');
+  /** Armory: who the selected unit hands items to. */
+  const [giveTo, setGiveTo] = useState('');
   const next = CHAPTERS[c.chapterIndex];
   const shopTier = Math.min(4, c.chapterIndex + 1);
 
@@ -74,7 +76,7 @@ export function CampScreen({ campaign: c, onChange, onMarch, onOpenSaveMenu, onT
     if (gift) {
       roster = roster.map(u => {
         if (u.id !== gift.unitId || u.weapons.some(w => w.defId === gift.weaponId)) return u;
-        const weapons = u.weapons.length >= MAX_WEAPONS ? [...u.weapons.slice(1), makeWeapon(gift.weaponId)] : [...u.weapons, makeWeapon(gift.weaponId)];
+        const weapons = !canTake(u) ? [...u.weapons.slice(1), makeWeapon(gift.weaponId)] : [...u.weapons, makeWeapon(gift.weaponId)];
         return { ...u, weapons, equipped: weapons.length - 1 };
       });
     }
@@ -87,7 +89,7 @@ export function CampScreen({ campaign: c, onChange, onMarch, onOpenSaveMenu, onT
   const unit = c.roster.find(u => u.id === selected) ?? c.roster[0];
   const buy = (defId: string) => {
     const w = WEAPONS[defId];
-    if (!unit || c.gold < w.price || unit.weapons.length >= MAX_WEAPONS) return;
+    if (!unit || c.gold < w.price || !canTake(unit)) return;
     updateUnit(unit.id, u => ({ ...u, weapons: [...u.weapons, makeWeapon(defId)] }), { gold: c.gold - w.price });
     say(`${unit.name} bought a ${w.name}.`);
   };
@@ -110,9 +112,34 @@ export function CampScreen({ campaign: c, onChange, onMarch, onOpenSaveMenu, onT
     updateUnit(unit.id, u => ({ ...u, weapons: u.weapons.map((x, j) => (j === i ? { ...x, forge: x.forge + 1 } : x)) }), { gold: c.gold - cost });
     say(`The smith reforged ${wdef(w).name} to +${w.forge + 1}: +1 might, +5 hit.`);
   };
+  const repair = (i: number) => {
+    if (!unit) return;
+    const w = unit.weapons[i];
+    const cost = repairCost(w);
+    if (!cost || c.gold < cost) return;
+    updateUnit(unit.id, u => ({ ...u, weapons: u.weapons.map((x, j) => (j === i ? { ...x, uses: undefined } : x)) }), { gold: c.gold - cost });
+    say(`The smith restored ${wdef(w).name} for ${cost} gold.`);
+  };
+  const recipient = c.roster.find(u => u.id === giveTo && u.id !== unit?.id);
+  const give = (item: TradeItem) => {
+    if (!unit || !recipient) return;
+    const a = clone(unit), b = clone(recipient);
+    const what = giveItem(a, b, item);
+    if (!what) return;
+    onChange({ ...c, roster: c.roster.map(u => (u.id === a.id ? a : u.id === b.id ? b : u)) });
+    say(`${a.name} gave ${b.name} a ${what}.`);
+  };
   const equip = (i: number) => unit && updateUnit(unit.id, u => ({ ...u, equipped: i }));
+  const buyPick = () => {
+    if (!unit || !canTake(unit) || c.gold < PICK_PRICE) return;
+    updateUnit(unit.id, u => ({ ...u, picks: [...picksOf(u), PICK_USES] }), { gold: c.gold - PICK_PRICE });
+  };
+  const buyStone = () => {
+    if (!unit || !canTake(unit, 'stones') || c.gold < STONE_PRICE) return;
+    updateUnit(unit.id, u => ({ ...u, stones: (u.stones ?? 0) + 1 }), { gold: c.gold - STONE_PRICE });
+  };
   const buyPotion = () => {
-    if (!unit || unit.potions >= MAX_POTIONS || c.gold < POTION_PRICE) return;
+    if (!unit || !canTake(unit, 'potions') || c.gold < POTION_PRICE) return;
     updateUnit(unit.id, u => ({ ...u, potions: u.potions + 1 }), { gold: c.gold - POTION_PRICE });
   };
 
@@ -260,6 +287,7 @@ export function CampScreen({ campaign: c, onChange, onMarch, onOpenSaveMenu, onT
 
       {panel === 'army' && (
         <Sheet title="Army" onClose={() => setPanel(null)} wide>
+          <p className="hint">Up to 10 march into each battle, in this order. {c.roster.filter(u => !u.reserve || u.isLord).length} are set to march; put anyone you want to leave behind in reserve.</p>
           <section className="army">
             {c.roster.map(u => (
               <article key={u.id} className="army-card">
@@ -274,6 +302,11 @@ export function CampScreen({ campaign: c, onChange, onMarch, onOpenSaveMenu, onT
                   </div>
                   <p className="ac-weapons">{u.weapons.map((w, i) => <span key={w.uid} className={i === u.equipped ? 'eq' : ''}><WeaponIcon type={wdef(w).type} size={13} /> {weaponLabel(w)}</span>)}</p>
                   <button className="ghost small" onClick={() => setPanel(`profile:${u.id}`)}>Profile</button>
+                  {!u.isLord && (
+                    <button className={u.reserve ? 'small' : 'small toggle on'} aria-pressed={!u.reserve} onClick={() => updateUnit(u.id, x => ({ ...x, reserve: !x.reserve }))}>
+                      {u.reserve ? 'In reserve' : 'Marching'}
+                    </button>
+                  )}
                 </div>
               </article>
             ))}
@@ -293,7 +326,13 @@ export function CampScreen({ campaign: c, onChange, onMarch, onOpenSaveMenu, onT
               ))}
             </div>
             <div className="inventory">
-              <h3>{unit.name}'s pack <small>{unit.weapons.length}/{MAX_WEAPONS} weapons. Uses {classOf(unit).weapons.join(' and ')}.</small> <span className="gold-inline">{c.gold.toLocaleString()} gold</span></h3>
+              <h3>{unit.name}'s pack <small>{itemCount(unit)}/{MAX_ITEMS} items. Uses {classOf(unit).weapons.join(' and ')}.</small> <span className="gold-inline">{c.gold.toLocaleString()} gold</span></h3>
+              <p><label>Give items to{' '}
+                <select value={recipient?.id ?? ''} onChange={e => setGiveTo(e.target.value)}>
+                  <option value="">nobody</option>
+                  {c.roster.filter(u => u.id !== unit.id).map(u => <option key={u.id} value={u.id}>{u.name} ({itemCount(u)}/{MAX_ITEMS})</option>)}
+                </select>
+              </label></p>
               <table>
                 <tbody>
                   {unit.weapons.map((w, i) => {
@@ -301,13 +340,15 @@ export function CampScreen({ campaign: c, onChange, onMarch, onOpenSaveMenu, onT
                     return (
                       <tr key={w.uid} className={i === unit.equipped ? 'eq' : ''}>
                         <td><span className="wname"><WeaponIcon type={d.type} size={16} /> {weaponLabel(w)}</span></td>
-                        <td>{d.type === 'staff' ? `Heals ${d.heal}` : `Mt ${d.might + w.forge}  Hit ${d.hit + w.forge * 5}  Crit ${d.crit}  Wt ${d.weight}`}</td>
+                        <td>{d.type === 'staff' ? `Heals ${d.heal}` : `Mt ${d.might + w.forge}  Hit ${d.hit + w.forge * 5}  Crit ${d.crit}  Wt ${d.weight}`}{effectNote(d) && <><br /><em>{effectNote(d)}</em></>}</td>
                         <td className="acts">
                           <button disabled={i === unit.equipped || !canWield(unit, w)} onClick={() => equip(i)}>{i === unit.equipped ? 'Equipped' : 'Equip'}</button>
                           <button disabled={w.forge >= MAX_FORGE || c.gold < forgeCost(w) || d.type === 'staff'} onClick={() => forge(i)}>
                             {w.forge >= MAX_FORGE ? 'Max forge' : `Forge ${forgeCost(w)}g`}
                           </button>
+                          {Number.isFinite(maxUses(w)) && <button disabled={usesLeft(w) >= maxUses(w) || c.gold < repairCost(w)} onClick={() => repair(i)}>{usesLeft(w) >= maxUses(w) ? 'Like new' : `Repair ${repairCost(w)}g`}</button>}
                           <button disabled={d.price === 0 || unit.weapons.length <= 1} onClick={() => sell(i)}>{d.price === 0 ? 'Keepsake' : `Sell ${sellPrice(w)}g`}</button>
+                          {recipient && <button disabled={d.tier >= 99 || !canTake(recipient)} onClick={() => give({ kind: 'weapon', index: i })}>Give</button>}
                         </td>
                       </tr>
                     );
@@ -315,8 +356,36 @@ export function CampScreen({ campaign: c, onChange, onMarch, onOpenSaveMenu, onT
                   <tr>
                     <td>Vulnerary ×{unit.potions}</td>
                     <td>Restores 15 HP in battle</td>
-                    <td className="acts"><button disabled={unit.potions >= MAX_POTIONS || c.gold < POTION_PRICE} onClick={buyPotion}>Buy {POTION_PRICE}g</button></td>
+                    <td className="acts"><button disabled={!canTake(unit, 'potions') || c.gold < POTION_PRICE} onClick={buyPotion}>Buy {POTION_PRICE}g</button>{recipient && <button disabled={!unit.potions || !canTake(recipient, 'potions')} onClick={() => give({ kind: 'potions' })}>Give</button>}</td>
                   </tr>
+                  {picksOf(unit).map((p, i) => (
+                    <tr key={`pick${i}`}>
+                      <td>Lockpick {p}/{PICK_USES}</td>
+                      <td>Opens chests, doors and gates without a key. Only a thief can use it</td>
+                      <td className="acts">{recipient && <button disabled={!canTake(recipient)} onClick={() => give({ kind: 'pick', index: i })}>Give</button>}</td>
+                    </tr>
+                  ))}
+                  {classOf(unit).steals && (
+                    <tr>
+                      <td>New lockpick</td>
+                      <td>Good for {PICK_USES} locks, then it snaps. Each one takes a pack slot</td>
+                      <td className="acts"><button disabled={!canTake(unit) || c.gold < PICK_PRICE} onClick={buyPick}>Buy {PICK_PRICE}g</button></td>
+                    </tr>
+                  )}
+                  {!!unit.keys && (
+                    <tr>
+                      <td>Key ×{unit.keys}</td>
+                      <td>Opens one chest, door or gate. Taken from enemies</td>
+                      <td className="acts">{recipient && <button disabled={!canTake(recipient, 'keys')} onClick={() => give({ kind: 'keys' })}>Give</button>}</td>
+                    </tr>
+                  )}
+                  {(classOf(unit).shifts || !!unit.stones) && (
+                    <tr>
+                      <td>Dragonstone ×{unit.stones ?? 0}</td>
+                      <td>Dragon form for three turns in battle (carry up to {MAX_STONES})</td>
+                      <td className="acts">{classOf(unit).shifts && <button disabled={!canTake(unit, 'stones') || c.gold < STONE_PRICE} onClick={buyStone}>Buy {STONE_PRICE}g</button>}{recipient && <button disabled={!unit.stones || !canTake(recipient, 'stones')} onClick={() => give({ kind: 'stones' })}>Give</button>}</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -328,8 +397,8 @@ export function CampScreen({ campaign: c, onChange, onMarch, onOpenSaveMenu, onT
                   return (
                     <li key={w.id} className={usable ? '' : 'unusable'}>
                       <span><WeaponIcon type={w.type} size={16} /> {w.name}</span>
-                      <small>{w.type === 'staff' ? `Heals ${w.heal}` : `Mt ${w.might}  Hit ${w.hit}  Crit ${w.crit}  Wt ${w.weight}${w.maxRange > 1 ? '  Rng 1–2' : ''}`}</small>
-                      <button disabled={!usable || c.gold < w.price || unit.weapons.length >= MAX_WEAPONS} onClick={() => buy(w.id)}>{w.price}g</button>
+                      <small>{w.type === 'staff' ? `Heals ${w.heal}` : `Mt ${w.might}  Hit ${w.hit}  Crit ${w.crit}  Wt ${w.weight}${w.maxRange > 1 ? '  Rng 1–2' : ''}${effectNote(w) ? `  ${effectNote(w)}` : ''}`}</small>
+                      <button disabled={!usable || c.gold < w.price || !canTake(unit)} onClick={() => buy(w.id)}>{w.price}g</button>
                     </li>
                   );
                 })}

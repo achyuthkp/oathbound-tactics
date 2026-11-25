@@ -4,7 +4,7 @@ import { TERRAIN } from '../../game/data/terrain';
 import { bondBonus, type Forecast, type SideCalc } from '../../game/combat';
 import type { BattleState, Stats, TerrainId, Unit } from '../../game/types';
 import { STAT_KEYS, STAT_LABEL } from '../../game/types';
-import { canWield, classOf, movOf, wdef, weaponLabel } from '../../game/units';
+import { PICK_USES, effectNote, canWield, classOf, movOf, picksOf, wdef, weaponLabel } from '../../game/units';
 import { profileFor } from '../../game/data/profiles';
 import { Portrait, TileArt, WeaponIcon } from '../art';
 import { Figure, standPose } from '../figure';
@@ -17,12 +17,12 @@ function shoreMask(map: TerrainId[][], x: number, y: number): number {
   return (land(x, y - 1) ? 1 : 0) | (land(x + 1, y) ? 2 : 0) | (land(x, y + 1) ? 4 : 0) | (land(x - 1, y) ? 8 : 0);
 }
 
-export const TerrainLayer = memo(function TerrainLayer({ map }: { map: TerrainId[][] }) {
+export const TerrainLayer = memo(function TerrainLayer({ map, visited, burned, opened }: { map: TerrainId[][]; visited?: string[]; burned?: string[]; opened?: string[] }) {
   return (
     <div className="terrain" style={{ gridTemplateColumns: `repeat(${map[0].length}, ${TILE}px)` }}>
       {map.flatMap((row, y) => row.map((t, x) => (
         <div key={`${x},${y}`} className={`tile t-${t} ${(x + y) % 2 ? 'odd' : ''}`}>
-          <TileArt t={t} x={x} y={y} mask={t === 'water' ? shoreMask(map, x, y) : 0} />
+          <TileArt t={t} x={x} y={y} mask={t === 'water' ? shoreMask(map, x, y) : t === 'chest' ? (opened?.includes(`${x},${y}`) ? 1 : 0) : t !== 'house' ? 0 : burned?.includes(`${x},${y}`) ? 2 : visited?.includes(`${x},${y}`) ? 1 : 0} />
         </div>
       )))}
     </div>
@@ -43,9 +43,10 @@ export function UnitToken({ u, selected, targeted, healed }: { u: Unit; selected
       style={{ transform: `translate(${u.x * TILE}px, ${u.y * TILE}px)` }}
     >
       <div className="unit-base" />
-      <div className="sprite"><Figure look={lookFor(u)} build={buildFor(u)} weapon={w && wdef(w).type} pose={healed ? 'healed' : u.done ? 'rest' : standPose(u.hp, u.stats.hp)} facing={u.team === 'enemy' ? 'left' : 'right'} size={56} /></div>
+      <div className="sprite"><Figure look={lookFor(u)} build={buildFor(u)} weapon={w && wdef(w).type} weaponId={w?.defId} pose={healed ? 'healed' : u.done ? 'rest' : standPose(u.hp, u.stats.hp)} facing={u.team === 'enemy' ? 'left' : 'right'} size={56} /></div>
       {w && <span className="unit-weapon"><WeaponIcon type={wdef(w).type} size={13} /></span>}
       {u.isBoss && <span className="boss-mark" title="Boss">♛</span>}
+      {u.team === 'enemy' && !!u.keys && <svg className="boss-mark" viewBox="0 0 7 4" width="14" height="8" shapeRendering="crispEdges" role="img" aria-label="Carries a key"><title>Carries a key</title><path d="M0 0h3v3h-3zM3 1h4v1h-4zM5 2h1v1h-1zM6 2h1v2h-1z" fill="#f2c94c" stroke="#3a2a10" strokeWidth=".4" /><path d="M1 1h1v1h-1z" fill="#3a2a10" /></svg>}
       <HpBar hp={u.hp} max={u.stats.hp} />
     </div>
   );
@@ -76,13 +77,17 @@ export function UnitCard({ u, state, compact }: { u: Unit; state?: BattleState; 
             {u.weapons.map((w, i) => (
               <li key={w.uid} className={`${i === u.equipped ? 'eq' : ''} ${canWield(u, w) ? '' : 'unusable'}`}>
                 <WeaponIcon type={wdef(w).type} size={14} /> {weaponLabel(w)}
-                <small>{wdef(w).type === 'staff' ? `heals ${wdef(w).heal}` : `Mt ${wdef(w).might + w.forge}, range ${wdef(w).minRange}${wdef(w).maxRange > 1 ? `–${wdef(w).maxRange}` : ''}`}</small>
+                <small>{wdef(w).type === 'staff' ? `heals ${wdef(w).heal}` : `Mt ${wdef(w).might + w.forge}, range ${wdef(w).minRange}${wdef(w).maxRange > 1 ? `–${wdef(w).maxRange}` : ''}${effectNote(wdef(w)) ? `. ${effectNote(wdef(w))}` : ''}`}</small>
               </li>
             ))}
             {u.potions > 0 && <li className="potion">Vulnerary ×{u.potions}</li>}
+            {u.dragon ? <li className="potion">Dragon form: {u.dragon} turn{u.dragon === 1 ? '' : 's'} left</li> : !!u.stones && <li className="potion">Dragonstone ×{u.stones}</li>}
+            {picksOf(u).map((p, i) => <li key={i} className="potion">Lockpick {p}/{PICK_USES}</li>)}
+            {!!u.keys && <li className="potion">Key ×{u.keys}{u.team === 'enemy' ? '. Defeat or rob them to take it' : ''}</li>}
+            {!!u.loot && <li className="potion">Carrying {u.loot} gold of plunder</li>}
           </ul>
           {bond > 0 && <div className="uc-bond">Bond support: +{bond} hit / avoid</div>}
-          {u.team === 'enemy' && u.ai && <div className="uc-ai">{u.ai === 'aggressive' ? 'Advancing' : u.ai === 'guard' ? 'Guarding — attacks if you come in range' : 'Holding position'}</div>}
+          {u.team === 'enemy' && u.ai && <div className="uc-ai">{u.ai === 'aggressive' ? 'Advancing' : u.ai === 'guard' ? 'Guarding — attacks if you come in range' : u.ai === 'loot' ? 'Looting — heading for a treasure chest. Defeat it to get the treasure back' : u.ai === 'raid' ? 'Raiding — heading for a house to burn it. Stand on the house to protect it' : 'Holding position'}</div>}
         </>
       )}
     </div>
@@ -152,7 +157,7 @@ export function LevelUpModal({ view, onClose }: { view: LevelUpView; onClose: ()
     <div className="modal-back" onClick={onClose}>
       <div className="levelup" role="dialog" aria-label="Level up">
         <div className="lu-portrait"><Portrait look={lookFor(view.unit)} size={110} /></div>
-        <Figure look={lookFor(view.unit)} build={buildFor(view.unit)} weapon={view.unit.weapons[view.unit.equipped] && wdef(view.unit.weapons[view.unit.equipped]).type} pose="levelup" size={120} />
+        <Figure look={lookFor(view.unit)} build={buildFor(view.unit)} weaponId={view.unit.weapons[view.unit.equipped]?.defId} pose="levelup" size={120} />
         <div>
           <h3>{view.name} reached level {view.level}</h3>
           <div className="lu-stats">
@@ -196,7 +201,7 @@ export function HudUnit({ u, terrain, onProfile }: { u: Unit; terrain?: TerrainI
       <div className="hu-main">
         <div className="hu-name"><strong>{u.name}{u.isBoss ? ' ♛' : ''}</strong><span>Lv {u.level} {classOf(u).name}</span></div>
         <div className="uc-hp"><HpBar hp={u.hp} max={u.stats.hp} /><span>{u.hp}/{u.stats.hp}</span></div>
-        <div className="hu-weapon">{w && <><WeaponIcon type={wdef(w).type} size={14} /> {weaponLabel(w)}</>}{u.potions > 0 && <span className="hu-pot">Vulnerary ×{u.potions}</span>}</div>
+        <div className="hu-weapon">{w && <><WeaponIcon type={wdef(w).type} size={14} /> {weaponLabel(w)}</>}{u.potions > 0 && <span className="hu-pot">Vulnerary ×{u.potions}</span>}{u.dragon ? <span className="hu-pot">Dragon form: {u.dragon}</span> : !!u.stones && <span className="hu-pot">Dragonstone ×{u.stones}</span>}{picksOf(u).length > 0 && <span className="hu-pot">Lockpick ×{picksOf(u).length}</span>}{!!u.keys && <span className="hu-pot">Key ×{u.keys}</span>}</div>
       </div>
       <dl className="hu-stats">
         {STAT_KEYS.filter(k => k !== 'hp').map(k => <div key={k}><dt>{STAT_LABEL[k]}</dt><dd>{u.stats[k]}</dd></div>)}

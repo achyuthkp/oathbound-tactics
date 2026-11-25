@@ -29,7 +29,7 @@ function navScope(): HTMLElement | null {
   const group = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>('[data-pad-group]');
   if (group) return group;
   // the battle map, the camp, a combat scene or a story scene use the directions themselves
-  if (document.querySelector('.map-frame, .cw-world, .cs-back, .story')) return null;
+  if (document.querySelector('.map-world, .cw-world, .cs-back, .story')) return null;
   return document.body;
 }
 

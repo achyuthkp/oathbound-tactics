@@ -28,7 +28,10 @@ export function mergeBattle(c: Campaign, r: BattleResult, chapterIndex: number):
     if (dead && c.mode === 'classic') continue;
     if (!src) { roster.push(old); continue; }
     roster.push({ ...old, level: src.level, exp: src.exp, stats: { ...src.stats }, hp: live ? src.hp : 1,
-      weapons: src.weapons.map(w => ({ ...w })), equipped: src.equipped, potions: src.potions, done: false });
+      weapons: src.weapons.map(w => ({ ...w })), equipped: src.equipped, potions: src.potions, stones: src.stones, picks: src.picks, keys: src.keys, done: false });
+  }
+  for (const id of r.recruits ?? []) {
+    if (!roster.some(u => u.id === id) && !c.fallen.includes(id)) roster.push(createPlayerUnit(id));
   }
   const bonds = { ...c.bonds };
   for (const [k, v] of Object.entries(r.bondGains)) bonds[k] = (bonds[k] ?? 0) + v;

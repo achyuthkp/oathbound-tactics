@@ -29,11 +29,14 @@ npx esbuild test/sim.ts --bundle --platform=node --outfile=/tmp/sim.cjs && node 
 
 ## Screen layout
 
-The battlefield fills the screen. The map scales to fit, and decorative terrain continues past
-its edges, dimmed, so widescreen monitors have no empty bars; only the framed area is playable.
-A bottom bar shows the objective, the unit under the cursor (or the combat forecast while
-targeting), and the turn buttons. Press **D** or click **Details** for the full drawer: complete
-stats and weapons for both units, terrain, the weapon triangle, and the battle log.
+The battlefield fills the screen and shows up to 14×10 tiles at a time. Chapter maps are 22×14,
+so the view scrolls: drag the map, use the mouse wheel or trackpad, or move the cursor with the
+arrow keys or a controller and the camera follows. It also follows units as they move and opens
+each of your turns on a unit that can act. Where a map is smaller than the view, decorative
+terrain continues past its edges, dimmed. A bottom bar shows the objective, the unit under the
+cursor (or the combat forecast while targeting), and the turn buttons. Press **D** or click
+**Details** for the full drawer: complete stats and weapons for both units, terrain, the weapon
+triangle, and the battle log.
 
 ## Controls
 
@@ -120,17 +123,104 @@ double might to flying units. Staves heal adjacent allies.
 Fliers pay 1 everywhere but receive no terrain bonus.
 
 **Movement range.** Armoured classes move the least per turn (Knight 4), fliers the most (Sky
-Knight 8), and everyone else sits in between (foot classes 5, Cavalier 7). Water is fliers
+Knight and Wyvern Rider 8), and everyone else sits in between (foot classes 5, Cavalier 7). Water is fliers
 only for now; `src/game/data/terrain.ts` notes how a seafaring move type would slot in. No
 chapter uses desert yet.
 
 Tiles are 16×16 pixel art drawn in `src/components/tiles.tsx`, four variants per terrain; water
 draws a sandy bank with foam on any side that touches land and animates its waves.
 
+**Towns and houses.** A map only has houses where the story has people living there:
+
+| Chapter | Setting | Houses |
+| --- | --- | --- |
+| 1 The Burning Road | a farming village in the raiders' path | 2, and raiders come for them |
+| 2 Ironvale Bridge | a guarded river crossing | none |
+| 3 Whispering Wood | deep forest | a woodward's lone cabin |
+| 4 Siege of Highmoor | the town under the castle walls | 2 |
+| 5 The Ashen Throne | the burned capital: ruins | 1 still standing |
+
+A **house** with a lit doorway can be visited once: end a unit's move on it and choose
+**Visit**. Each gives one reward (gold, a vulnerary, or a weapon that goes into the visitor's
+pack, sold for half price if the pack is full); the cabin in chapter 3 holds a companion you can
+otherwise miss entirely. A visited house shuts its door. Town buildings block movement; ruins
+are rough ground with a little cover.
+
+**Raiders.** Only **brigands** can raid. They are their own unit: an axe fighter in a red head-wrap and fur mantle who carries a lit torch in the off hand. Brigands marked *Raiding* ignore your army and walk to the nearest house still
+standing to burn it down; a burned house's reward is gone for good. In chapter 1 two raiders
+ride in on turn 3 and, left alone, burn one house on turn 4 and the other on turn 5. Stop them by
+defeating them, by visiting the house first, or by standing a unit in the doorway, which
+protects that house and sends the raider to the next. With nothing left to burn they fight
+like anyone else. Give a brigand `ai: 'raid'` in `src/game/data/chapters.ts` to make one; the sim rejects the flag on any other class (the ability is `raids` on the class in `src/game/data/classes.ts`).
+
+**Thieves.** Fast, frail sword users (Pip joins in chapter 2; the Empire has its own
+cutpurses). Standing next to an enemy that is not faster, a thief can **Steal** a vulnerary or
+any weapon that is not a personal one, if there is room in the thief's pack. Taking the weapon
+out of an enemy's hand needs 4 more Spd than the victim and never works on a boss; a disarmed
+enemy cannot attack. A thief can also steal a key.
+
+**Locks: chests, doors and gates.** Treasure chests, locked doors and locked gates each take
+one **key** or one **lockpick** to open. Stand on or beside a chest, or beside a door or gate,
+and the action menu offers *Chest: use key*, *Door: use lockpick* and so on. Any unit can use a
+key; only a thief can use a lockpick, and a thief carrying both chooses which to spend. An
+opened door or gate stays open for both sides. A lockpick opens 5 locks and then snaps; Pip starts with one and the armory sells more at
+500 gold. Keys: some enemies carry one, shown by a small gold key
+above them. Whoever defeats that enemy takes the key into their own pack (if the pack is full
+the key is lost), and it stays with that unit into later chapters until it is used. In chapter
+4 the two strongrooms are behind doors; in chapter 5 each chest sits in a vault behind a gate.
+Locks only ever guard optional rooms, never the objective. An enemy thief marked *Looting*
+carries a worn lockpick good for 2 locks, picks a door if the chests are locked in, then empties a chest; defeat
+that thief and everything it took drops as gold.
+
+**Packs and trading.** A unit carries at most **5 items**. Anything with durability counts one
+each: every weapon and every lockpick. Consumables stack: all of a unit's vulneraries are one
+item, and likewise its keys and its dragonstones. A unit standing next to an ally gets **Trade**
+in the action menu: pick an item on either side to hand it across, as long as the receiver has
+room. Personal weapons cannot be traded. Trading does not use the unit's action, but once
+something has changed hands the move can no longer be taken back. At camp, the armory has a
+**Give items to** picker that does the same between any two companions.
+
+**Effective weapons.** Some weapons deal triple might against one kind of unit, and the
+forecast marks the attack *Effective*. Bows against flying units. The **Rapier** (and Kael's
+Valen Rapier) and the **Hammer** against armoured units. The **Ridersbane** lance against
+mounted and flying units. The merchant sells the Rapier, Hammer and Ridersbane from chapter 2.
+
+**Durability.** Every blow that lands wears the weapon by one use, and every heal wears the
+staff; a miss costs nothing. The stronger the weapon, the fewer uses it has: iron-grade 40,
+steel 30, killer weapons 20, silver 15. At zero it breaks and is gone. Personal weapons wear as well (30
+uses) and can be repaired like any other; only a dragon's own breath never wears. The count shows after the weapon's name,
+as in *Steel Lance 27/30*. The smith at the armory repairs a worn weapon for up to half its
+price, in proportion to the wear. Enemy weapons wear too.
+
+**Dragonkin.** Helpless in human form (Sable joins in chapter 4; the Regent keeps one in
+chapter 5). **Transform** spends a dragonstone and the unit's action, and for the next three
+turns the unit is a dragon: HP +10, Str +8, Skl +3, Spd +2, Def +7, with fire breath that
+reaches two tiles and sits outside the weapon triangle. Then it changes back. A dragonkin
+carries up to 3 dragonstones; the merchant sells more at 1,200 gold each. Enemy dragonkin
+transform when your army comes within their movement range, so they can be baited and waited
+out.
+
+**Dragon kinds.** A dragonkin's element comes from the breath it carries, and sets how its
+dragon form looks and what it breathes: **fire** (red, embers and a burning tail), **water**
+(blue, a sail fin and flukes; Tide Breath is accurate), **earth** (wingless, rock plates and
+crystals; Stone Breath is short and breaks armour), **wind** (pale green, streamers; Gale Breath
+reaches three tiles and is strong against fliers), **light** (ivory and gold, feathered wings,
+antlers and a halo; Radiant Breath) and **dark**. In human form each shows small wings, a tail
+and cheek scales in its element's colours. Sable and the enemy dragonkin are fire dragons; the
+other kinds are drawn and have their breath weapons defined but are not placed on a map yet.
+
+**The Dark Dragon.** The final boss is a full dragon, three tiles by three, drawn in
+`src/components/greatdragon.tsx` with idle, hit and death animations and five attacks: Umbral
+Flame, Rending Claw, Tail Sweep, Wing Gale and Dread Roar. It is a sprite only for now, shown in
+the sprite browser under the *Dragons* group; the multi-tile unit rules come with the story.
+
+**Who marches.** Up to 10 units deploy (it was 8). With more companions than that, the Army
+panel at camp has a Marching / In reserve toggle for everyone but Kael.
+
 **Enemy behaviour.** Aggressive units hunt the best target in reach; guards wait until you
 come into range (or attack them); holders such as bosses never leave their tile.
 
-**Limits.** Each side fields at most 10 units (you deploy up to 8). Reinforcements stop
+**Limits.** Each side fields at most 10 units. Reinforcements stop
 spawning once the enemy has 10 on the field.
 
 **Defeat.** If Kael falls, the battle is lost and you can retry the chapter. In Classic
@@ -191,6 +281,17 @@ Open the game with **`#sprites`** on the end of the URL (or press **Sprites** on
 for the sprite browser: every sprite and portrait the game can draw, filterable by type, group,
 character, class, pose or expression, weapon and mount (terrain tiles are under type "Tiles"), with search, a size slider, a facing
 toggle and a replay button.
+
+Every weapon has its own look in the hand, so a unit's sprite changes with what it has equipped,
+on the map, in combat and at camp: steel is heavier and two-tone, killer weapons are dark with a
+red edge, silver is bright with a blue edge, and the personal weapons (the Valen Rapier, the
+Ashen Blade, the Oaken Staff) are one of a kind. The table is `WEAPON_STYLE` in
+`src/components/figure.tsx`.
+
+**Wyvern Riders** are the Empire's heavy fliers: armoured axe riders on red wyverns (horned head,
+pale belly plates, bat wings, a bladed tail, two legs tucked in flight). They hit harder and take
+more than Sky Knights but are slower, and bows are still their weakness. They appear in chapters
+4 and 5.
 
 Mounts are drawn in detail: shaded body, bridle, reins, blaze, saddle and blanket in the rider's
 accent colour, a four-beat gallop with a streaming tail, a tail swish at rest, and a three-stage
@@ -253,8 +354,8 @@ art/                    exported SVG illustrations (see art/README.md)
 
 ### Adding a chapter
 
-Append an entry to `CHAPTERS` in `src/game/data/chapters.ts`. Maps are 14×10 strings using
+Append an entry to `CHAPTERS` in `src/game/data/chapters.ts`. Maps are rows of equal-length strings using
 the legend at the top of that file (`.` plains, `F` forest, `h` hills, `D` desert, `M` mountain, `W` water, `#` wall,
-`H` fort, `B` bridge, `T` throne, `r` road). List player starts with the Lord first, then
+`H` fort, `B` bridge, `T` throne, `r` road, `V` house, `b` building, `x` ruins) and can be any size up to 64 tiles wide. List player starts with the Lord first, then
 enemies, optional reinforcements by turn, recruits, and the pre/post dialogue. Run the sim
 to catch units placed on impassable tiles.

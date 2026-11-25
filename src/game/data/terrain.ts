@@ -43,9 +43,18 @@ export const TERRAIN: Record<TerrainId, TerrainDef> = {
   fort: t('fort', 'Fort', 2, 20, 20, 2, 2, 2, 1),
   bridge: t('bridge', 'Bridge', 0, 0, 0, 1, 1, 1, 1),
   throne: t('throne', 'Throne', 3, 30, 20, 1, 1, 1, 1),
+  house: t('house', 'House', 0, 10, 0, 1, 1, 1, 1),
+  building: t('building', 'Building', 0, 0, 0, INF, INF, INF, 1),
+  chest: t('chest', 'Chest', 0, 0, 0, 1, 1, 1, 1),
+  // locked until opened with a key or a lockpick; then an ordinary passage
+  door: t('door', 'Locked door', 0, 0, 0, INF, INF, INF, INF),
+  gate: t('gate', 'Locked gate', 0, 0, 0, INF, INF, INF, INF),
+  doorway: t('doorway', 'Open door', 0, 0, 0, 1, 1, 1, 1),
+  gateway: t('gateway', 'Open gate', 0, 0, 0, 1, 1, 1, 1),
+  ruins: t('ruins', 'Ruins', 1, 10, 0, 2, 2, 3, 1),
 };
 
 export const CHAR_TERRAIN: Record<string, TerrainId> = {
   '.': 'plains', r: 'road', F: 'forest', h: 'hills', D: 'desert', M: 'mountain', W: 'water',
-  '#': 'wall', H: 'fort', B: 'bridge', T: 'throne',
+  '#': 'wall', H: 'fort', B: 'bridge', T: 'throne', V: 'house', b: 'building', x: 'ruins', C: 'chest', d: 'door', G: 'gate',
 };

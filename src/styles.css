@@ -138,6 +138,11 @@ button.toggle.on { background: #5a2a14; border-color: #e07a3a; color: #ffd7b5; }
 .t-mountain { background: #5d6e45; }
 .t-hills { background: #79a352; } /* grass shows around the slopes */
 .t-desert { background: #e4cb8a; }
+.t-house { background: #79a352; }
+.t-building { background: #8a8272; }
+.t-ruins { background: #6f7f55; }
+.t-chest, .t-doorway, .t-gateway { background: #77727f; }
+.t-door, .t-gate { background: #6e6a78; }
 .t-water { background: linear-gradient(180deg, #2f78b0, #2a6aa0); }
 @keyframes drift { to { transform: translateX(4px); } }
 .t-wall { background: #4b4651; }
@@ -382,7 +387,11 @@ button.toggle.on { background: #5a2a14; border-color: #e07a3a; color: #ffd7b5; }
 .map-surround { position: absolute; left: 50%; top: 50%; transform-origin: center; pointer-events: none; }
 .map-surround::after { content: ''; position: absolute; inset: 0;
   background: radial-gradient(ellipse at center, rgba(8,10,18,.25) 30%, rgba(8,10,18,.8) 100%); }
-.map-frame { position: relative; }
+.map-world { position: absolute; left: 0; top: 0; transform-origin: top left; transition: transform .2s ease-out; }
+.map-surround { transition: transform .2s ease-out; }
+.map-area.dragging .map-world, .map-area.dragging .map-surround { transition: none; }
+.map-area.scrolls .map { cursor: grab; touch-action: none; }
+.map-area.dragging .map { cursor: grabbing; }
 .map { transform-origin: top left; }
 .map .action-menu button { font-size: 15px; }
 
@@ -649,7 +658,7 @@ kbd { display: inline-block; padding: 1px 6px; border-radius: 3px; border: 1px s
 .sb-filters a { color: var(--gold-hi); padding-bottom: 6px; }
 .sb-count { color: var(--vellum-dim); font-size: 14px; margin: 10px 0; }
 .sb-grid { display: flex; flex-wrap: wrap; gap: 6px; }
-.sb-grid figure { margin: 0; background: rgba(26,34,56,.8); border: 1px solid var(--line); border-radius: 4px; padding: 10px 28px 4px; text-align: center; overflow: hidden; }
+.sb-grid figure { margin: 0; background: rgba(26,34,56,.8); border: 1px solid var(--line); border-radius: 4px; padding: 28px 28px 4px; text-align: center; overflow: hidden; } /* headroom: fliers and plumes rise above the sprite box */
 .sb-grid figure svg { margin: 0 auto; }
 .sb-grid figcaption { font-size: 12px; color: var(--vellum-dim); }
 .sb-grid figcaption b { display: block; color: inherit; font: 700 13px var(--display); }
@@ -678,3 +687,9 @@ body[data-pad-type=ps] [data-pad=lb]::after, body[data-pad-type=ps] .pad-lb::aft
 body[data-pad-type=ps] [data-pad=rb]::after, body[data-pad-type=ps] .pad-rb::after { content: 'R1'; }
 body[data-pad-type=ps] [data-pad=start]::after { content: 'Options'; } body[data-pad-type=ps] [data-pad=select]::after { content: 'Create'; }
 body[data-pad-type=ps] .pad-a::after { content: '✕'; } body[data-pad-type=ps] .pad-b::after { content: '○'; }
+
+/* ---------------- House visit ---------------- */
+.visit { max-width: 440px; background: var(--ink-2); border: 2px solid var(--gold); border-radius: 6px; padding: 22px 26px; box-shadow: 0 20px 60px rgba(0,0,0,.6); cursor: pointer; }
+.visit h3 { font: 700 20px var(--display); color: var(--gold-hi); margin: 0 0 10px; }
+.visit p { margin: 0 0 10px; font: 400 17px/1.4 var(--serif); }
+.visit .visit-reward { color: #8affb0; font: 700 16px var(--sans); }

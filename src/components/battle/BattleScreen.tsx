@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CHAPTERS } from '../../game/data/chapters';
 import { planEnemy } from '../../game/ai';
 import {
-  applyAttack, applyHeal, applyPotion, applySeize, attackableTargets, bestWeaponFor, createBattle,
+  applyAttack, applyHeal, applyPotion, applySeize, applyBurn, applyOpen, applySteal, applyTransform, applyVisit, canTransform, locksNear, openTools, applyTrade, tradePartners, type TradeItem, houseAt, stealOptions, type StealOption, attackableTargets, bestWeaponFor, createBattle,
   endEnemyPhase, endPlayerPhase, healAmount, healTargets, markDone, outcome, toResult,
   type BattleEvents, type BattleResult,
 } from '../../game/battle';
@@ -12,7 +12,7 @@ import {
   computeReach, destinations, key, manhattan, pathTo, threatTiles, tilesInRange, unitAt, type Reach,
 } from '../../game/pathfinding';
 import type { BattleState, Campaign, Pos, Unit } from '../../game/types';
-import { attackWeapons, isFlying, staffIndex, wdef } from '../../game/units';
+import { MAX_ITEMS, PICK_USES, STACKS, STACK_IDS, attackWeapons, canTake, picksOf, isFlying, itemCount, staffIndex, wdef, weaponLabel } from '../../game/units';
 import { profileFor } from '../../game/data/profiles';
 import type { Strike, Forecast } from '../../game/combat';
 import type { TerrainId } from '../../game/types';
@@ -36,6 +36,9 @@ type Mode =
   | { kind: 'selected'; unitId: string }
   | { kind: 'menu'; unitId: string; from: Pos }
   | { kind: 'target'; unitId: string; from: Pos; action: 'attack' | 'heal'; targets: string[]; targetId: string; weaponIdx: number };
+
+/** Tiles shown at once at most; larger maps scroll. */
+const VIEW_W = 14, VIEW_H = 10;
 
 interface Float { id: number; x: number; y: number; text: string; tone: 'dmg' | 'heal' | 'exp' | 'gold' | 'info'; }
 interface Banner { text: string; tone: string; sub?: string; }
@@ -71,6 +74,15 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
   const areaRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [area, setArea] = useState({ w: 0, h: 0 });
+  /** Camera: top-left of the view in map pixels. Scrolls by drag, wheel, or by moving the cursor. */
+  const [cam, setCam] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const drag = useRef<{ x: number; y: number; cam: { x: number; y: number }; moved: boolean } | null>(null);
+  const [visit, setVisit] = useState<{ title: string; text: string; reward: string } | null>(null);
+  /** The thief currently choosing what to steal. */
+  const [stealFor, setStealFor] = useState<string | null>(null);
+  /** The unit trading and the adjacent ally it is trading with. */
+  const [tradeFor, setTradeFor] = useState<{ a: string; b: string } | null>(null);
   const [floats, setFloats] = useState<Float[]>([]);
   const [levelUp, setLevelUp] = useState<LevelUpView | null>(null);
   const [danger, setDanger] = useState(false);
@@ -104,6 +116,32 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
 
   const find = (id: string) => stateRef.current.units.find(u => u.id === id);
 
+  /** Keep the camera on the map; a map smaller than the view is centred instead. */
+  function clampCam(c: { x: number; y: number }) {
+    const vw = area.w / scale, vh = area.h / scale, mw = state.width * TILE, mh = state.height * TILE;
+    return {
+      x: mw <= vw ? (mw - vw) / 2 : Math.max(0, Math.min(mw - vw, c.x)),
+      y: mh <= vh ? (mh - vh) / 2 : Math.max(0, Math.min(mh - vh, c.y)),
+    };
+  }
+  /** Scroll just enough to bring a tile on screen with a tile of margin, centring on it. */
+  function reveal(p: Pos) {
+    setCam(c => {
+      const vw = area.w / scale, vh = area.h / scale, cur = clampCam(c);
+      const x = p.x * TILE, y = p.y * TILE;
+      const inside = x >= cur.x + TILE && x + TILE <= cur.x + vw - TILE && y >= cur.y + TILE && y + TILE <= cur.y + vh - TILE;
+      return inside ? cur : clampCam({ x: x + TILE / 2 - vw / 2, y: y + TILE / 2 - vh / 2 });
+    });
+  }
+  // each player turn opens on a unit that can act
+  const myTurn = state.phase === 'player' ? state.turn : 0;
+  const sized = area.w > 0;
+  useEffect(() => {
+    const u = stateRef.current.units.find(x => x.team === 'player' && !x.done);
+    if (sized && myTurn && u) reveal(u);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myTurn, sized]);
+
   async function showBanner(text: string, tone: string, ms: number, sub?: string) {
     setBanner({ text, tone, sub });
     await sleep(ms);
@@ -128,6 +166,7 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
     for (let i = 1; i < path.length; i++) {
       const s = stateRef.current;
       setState({ ...s, units: s.units.map(u => (u.id === unitId ? { ...u, x: path[i].x, y: path[i].y } : u)) });
+      reveal(path[i]);
       await sleep(STEP_MS);
     }
   }
@@ -140,6 +179,10 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
     if (ev.gold) {
       const lord = stateRef.current.units.find(u => u.isLord);
       if (lord) addFloat(lord, `+${ev.gold} gold`, 'gold');
+    }
+    for (const b of ev.broken) {
+      const u = find(b.unitId);
+      if (u) addFloat(u, `${b.name} broke!`, 'dmg');
     }
     for (const lu of ev.levelUps) {
       const u = find(lu.unitId);
@@ -207,7 +250,7 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
     if (!el) return;
     const fit = () => {
       const w = el.clientWidth - 16, h = el.clientHeight - 16;
-      setScale(Math.max(0.4, Math.min(w / (state.width * TILE), h / (state.height * TILE))));
+      setScale(Math.max(0.4, Math.min(w / (Math.min(state.width, VIEW_W) * TILE), h / (Math.min(state.height, VIEW_H) * TILE))));
       setArea({ w: el.clientWidth, h: el.clientHeight });
     };
     fit();
@@ -249,9 +292,21 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
       const unit = find(id);
       if (!unit) continue;
       const plan = planEnemy(stateRef.current, unit);
-      const acts = plan.path.length > 1 || !!plan.attack;
+      const acts = plan.path.length > 1 || !!plan.attack || !!plan.raid || !!plan.loot || !!plan.transform;
       if (plan.path.length > 1) { await animateMove(id, plan.path); await sleep(110); }
       if (plan.attack) await doCombat(id, plan.attack.targetId, plan.attack.weaponIdx);
+      if (plan.transform) {
+        const t = applyTransform(stateRef.current, id);
+        if (t) { setState(t); reveal(unit); addFloat(unit, 'Dragon form!', 'dmg'); await sleep(900); }
+      }
+      if (plan.loot) {
+        const o = applyOpen(stateRef.current, id, plan.loot, 'pick');
+        if (o) { setState(o.state); reveal(plan.loot); addFloat(plan.loot, o.chest ? 'Chest looted!' : 'Lock picked!', 'dmg'); await sleep(900); }
+      }
+      if (plan.raid) {
+        const burnt = applyBurn(stateRef.current, id);
+        if (burnt) { setState(burnt); reveal(plan.raid); addFloat(plan.raid, 'Burned down!', 'dmg'); await sleep(900); }
+      }
       if (find(id)) setState(markDone(stateRef.current, id));
       if (await checkEnd()) return;
       if (acts) await sleep(140);
@@ -278,6 +333,26 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
     await showBanner('Player phase', 'player', 950, sub);
     for (const h of r2.heals) { const u = find(h.unitId); if (u) addFloat(u, `+${h.amount}`, 'heal'); }
     setBusy(false);
+  }
+
+  async function doSteal(opt: StealOption) {
+    const id = stealFor;
+    if (!id) return;
+    setStealFor(null);
+    setBusy(true);
+    setMode({ kind: 'idle' });
+    const r = applySteal(stateRef.current, id, opt);
+    const thief = find(id);
+    if (r) { setState(r.state); if (thief) addFloat(thief, 'Stolen!', 'gold'); await sleep(700); }
+    await finishAction(id);
+  }
+
+  /** Hand an item across. Trading is free, but it commits the move: no walking back afterwards. */
+  function doTrade(from: string, to: string, item: TradeItem) {
+    const t = applyTrade(stateRef.current, from, to, item);
+    if (!t) return;
+    setState(t);
+    if (mode.kind === 'menu') { const u = t.units.find(x => x.id === mode.unitId); if (u) setMode({ ...mode, from: { x: u.x, y: u.y } }); }
   }
 
   async function finishAction(unitId: string) {
@@ -341,7 +416,7 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
         const cy = Math.max(0, Math.min(state.height - 1, y));
         let t = state.map[cy][cx];
         if (x < 0 || y < 0 || x >= state.width || y >= state.height) {
-          if (t === 'road' || t === 'fort' || t === 'throne' || t === 'bridge') t = 'plains';
+          if (t === 'road' || t === 'fort' || t === 'throne' || t === 'bridge' || t === 'house' || t === 'building' || t === 'ruins' || t === 'chest') t = 'plains';
           const h = (Math.imul(x + 97, 73856093) ^ Math.imul(y + 89, 19349663)) >>> 0;
           const out = Math.max(-x, -y, x - state.width + 1, y - state.height + 1);
           if (t === 'plains' && h % 6 === 0) t = 'forest';
@@ -369,6 +444,8 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
   function cancel() {
     if (continueRef.current) { continueRef.current(); return; }
     if (profileUnit) { setProfileUnit(null); return; }
+    if (tradeFor) { setTradeFor(null); return; }
+    if (stealFor) { setStealFor(null); return; }
     if (busy) return;
     if (mode.kind === 'selected') setMode({ kind: 'idle' });
     else if (mode.kind === 'menu') {
@@ -406,13 +483,16 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
     const ready = s.units.filter(u => u.team === 'player' && !u.done);
     if (dir) {
       const from = hover ?? (() => { const u = ready[0] ?? s.units[0]; return { x: u.x - dir[0], y: u.y - dir[1] }; })();
-      setHover({ x: Math.max(0, Math.min(s.width - 1, from.x + dir[0])), y: Math.max(0, Math.min(s.height - 1, from.y + dir[1])) });
+      const p = { x: Math.max(0, Math.min(s.width - 1, from.x + dir[0])), y: Math.max(0, Math.min(s.height - 1, from.y + dir[1])) };
+      setHover(p);
+      reveal(p);
       return true;
     }
     if ((k === '[' || k === ']') && ready.length) {
       const i = ready.findIndex(u => hover && u.x === hover.x && u.y === hover.y);
       const u = ready[(i + (k === ']' ? 1 : ready.length - 1) + (i < 0 && k === '[' ? 1 : 0)) % ready.length];
       setHover({ x: u.x, y: u.y });
+      reveal(u);
       return true;
     }
     if (confirm && hover) { void clickTile(hover); return true; }
@@ -422,7 +502,8 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
   const aimAt = mode.kind === 'target' ? mode.targetId : null;
   useEffect(() => {
     const t = aimAt && stateRef.current.units.find(u => u.id === aimAt);
-    if (t) setHover({ x: t.x, y: t.y });
+    if (t) { setHover({ x: t.x, y: t.y }); reveal(t); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aimAt]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -446,6 +527,7 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
   }
 
   function onMapClick(e: React.MouseEvent) {
+    if (drag.current?.moved) { drag.current.moved = false; return; } // that was a drag, not a click
     const p = tileFromEvent(e);
     if (p) void clickTile(p);
   }
@@ -564,6 +646,8 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
     const u = s.units.find(x => x.id === m.unitId);
     if (!u) return;
     if (action === 'attack') { enterTarget(u, m.from); return; }
+    if (action === 'steal') { setStealFor(u.id); return; }
+    if (action === 'trade') { const p = tradePartners(s, u)[0]; if (p) setTradeFor({ a: u.id, b: p.id }); return; }
     if (action === 'heal') {
       const ts = healTargets(s, u);
       if (ts.length) setMode({ kind: 'target', unitId: u.id, from: m.from, action: 'heal', targets: ts.map(t => t.id), targetId: ts[0].id, weaponIdx: staffIndex(u) });
@@ -576,6 +660,31 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
       setState(r.state);
       addFloat(u, `+${r.amount}`, 'heal');
       await sleep(600);
+    }
+    if (action === 'visit') {
+      const r = applyVisit(stateRef.current, u.id);
+      if (r) {
+        setState(r.state);
+        setVisit({ title: `${u.name} visits the house`, text: r.house.text, reward: r.reward });
+        await waitContinue(60000);
+        setVisit(null);
+      }
+    }
+    if (action.startsWith('open:')) {
+      const [, x, y, tool] = action.split(':');
+      const r = applyOpen(stateRef.current, u.id, { x: +x, y: +y }, tool === 'pick' ? 'pick' : 'key');
+      if (r) {
+        setState(r.state);
+        if (r.chest) {
+          setVisit({ title: `${u.name} opens the chest`, text: r.chest.text, reward: r.reward });
+          await waitContinue(60000);
+          setVisit(null);
+        } else { addFloat(r.lock, 'Unlocked!', 'gold'); await sleep(800); }
+      }
+    }
+    if (action === 'transform') {
+      const t = applyTransform(stateRef.current, u.id);
+      if (t) { setState(t); addFloat(u, 'Dragon form!', 'gold'); await sleep(800); }
     }
     if (action === 'seize') setState(applySeize(stateRef.current));
     await finishAction(u.id);
@@ -591,6 +700,13 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
     if (menuUnit.potions > 0 && menuUnit.hp < menuUnit.stats.hp) menuItems.push({ id: 'item', label: `Vulnerary (${menuUnit.potions})` });
     const o = chapter.objective;
     if (o.type === 'seize' && menuUnit.isLord && menuUnit.x === o.x && menuUnit.y === o.y) menuItems.push({ id: 'seize', label: 'Seize' });
+    if (canTransform(menuUnit)) menuItems.push({ id: 'transform', label: `Transform (${menuUnit.stones} stone${menuUnit.stones === 1 ? '' : 's'})` });
+    if (stealOptions(state, menuUnit).length) menuItems.push({ id: 'steal', label: 'Steal' });
+    for (const l of locksNear(state, menuUnit)) for (const tool of openTools(menuUnit)) {
+      menuItems.push({ id: `open:${l.x}:${l.y}:${tool}`, label: `${l.kind[0].toUpperCase()}${l.kind.slice(1)}: use ${tool === 'pick' ? 'lockpick' : 'key'}` });
+    }
+    if (tradePartners(state, menuUnit).length) menuItems.push({ id: 'trade', label: 'Trade' });
+    if (houseAt(state, menuUnit)) menuItems.push({ id: 'visit', label: 'Visit' });
     menuItems.push({ id: 'wait', label: 'Wait' });
   }
 
@@ -606,6 +722,8 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
 
   const obj = chapter.objective;
   const W = state.width * TILE, H = state.height * TILE;
+  const view = clampCam(cam);
+  const scrolls = W > area.w / scale + 1 || H > area.h / scale + 1;
   const playersLeft = state.units.filter(u => u.team === 'player' && !u.done).length;
 
   const menuPos = menuUnit ? {
@@ -628,7 +746,7 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
   ) : (
     <div className="hud-hint">
       {hoverTerrain ? <TerrainInfo t={hoverTerrain} /> : null}
-      <span className="kbm-only">Click a unit, then a blue tile to move. Click a red enemy to attack it. Right-click or Esc undoes. Press D for details.</span>
+      <span className="kbm-only">Click a unit, then a blue tile to move. Click a red enemy to attack it. Right-click or Esc undoes. Press D for details.{scrolls ? ' Drag the map, scroll, or use the arrow keys to see the rest of it.' : ''}</span>
       <span className="pad-only">Move the cursor with the D-pad or left stick. <b className="pad-a" /> selects and confirms, <b className="pad-b" /> undoes, <b className="pad-lb" /> <b className="pad-rb" /> jump between units that can still act.</span>
     </div>
   );
@@ -638,27 +756,43 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
 
   return (
     <div className={`battle backdrop-${chapter.backdrop}`}>
-      <div className="map-area" ref={areaRef}>
+      <div
+        className={`map-area ${scrolls ? 'scrolls' : ''} ${dragging ? 'dragging' : ''}`}
+        ref={areaRef}
+        onPointerDown={e => { if (e.button === 0 && (e.target as HTMLElement).closest('.map')) drag.current = { x: e.clientX, y: e.clientY, cam: view, moved: false }; }}
+        onPointerMove={e => {
+          const d = drag.current;
+          if (!d || !(e.buttons & 1) || !scrolls) return;
+          const dx = e.clientX - d.x, dy = e.clientY - d.y;
+          if (!d.moved && Math.hypot(dx, dy) < 6) return;
+          d.moved = true;
+          setDragging(true);
+          setCam(clampCam({ x: d.cam.x - dx / scale, y: d.cam.y - dy / scale }));
+        }}
+        onPointerUp={() => setDragging(false)}
+        onPointerLeave={() => setDragging(false)}
+        onWheel={e => { if (scrolls) setCam(c => { const v = clampCam(c); return clampCam({ x: v.x + e.deltaX / scale, y: v.y + e.deltaY / scale }); }); }}
+      >
         {area.w > 0 && (
           <div
             className="map-surround"
             aria-hidden="true"
-            style={{ width: surround[0].length * TILE, height: surround.length * TILE, transform: `translate(-50%, -50%) scale(${scale})` }}
+            style={{ width: surround[0].length * TILE, height: surround.length * TILE, left: 0, top: 0, transformOrigin: 'top left', transform: `translate(${-(view.x + extX * TILE) * scale}px, ${-(view.y + extY * TILE) * scale}px) scale(${scale})` }}
           >
             <TerrainLayer map={surround} />
           </div>
         )}
-        <div className="map-frame" style={{ width: W * scale, height: H * scale }}>
+        <div className="map-world" style={{ transform: `translate(${-view.x * scale}px, ${-view.y * scale}px) scale(${scale})` }}>
           <div
             className={`map ${busy ? 'is-busy' : ''}`}
             ref={mapRef}
-            style={{ width: W, height: H, transform: `scale(${scale})` }}
+            style={{ width: W, height: H }}
             onClick={onMapClick}
             onMouseMove={onMapMove}
             onMouseLeave={() => setHover(null)}
             onContextMenu={e => { e.preventDefault(); cancel(); }}
           >
-            <TerrainLayer map={state.map} />
+            <TerrainLayer map={state.map} visited={state.visited} burned={state.burned} opened={state.opened} />
             <div className="hl-layer">
               {dangerSet && [...dangerSet].map(k => <div key={`d${k}`} className="hl danger" style={tileStyle(k)} />)}
               {[...overlay.move].map(k => <div key={`m${k}`} className={`hl move ${focusUnit?.team === 'enemy' ? 'foe' : ''}`} style={tileStyle(k)} />)}
@@ -746,6 +880,61 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
       </footer>
 
       {scene && <CombatScene {...scene} />}
+      {visit && (
+        <div className="modal-back" onClick={() => continueRef.current?.()}>
+          <div className="visit" role="dialog" aria-label="House visit">
+            <h3>{visit.title}</h3>
+            <p>{visit.text}</p>
+            <p className="visit-reward">{visit.reward}</p>
+            <p className="hint">Click to continue</p>
+          </div>
+        </div>
+      )}
+      {stealFor && (() => {
+        const thief = state.units.find(u => u.id === stealFor);
+        const opts = thief ? stealOptions(state, thief) : [];
+        return (
+          <div className="modal-back" onClick={() => setStealFor(null)}>
+            <div className="pause" role="dialog" aria-label="Steal" onClick={e => e.stopPropagation()}>
+              <h3>Steal what?</h3>
+              {opts.map(o => <button key={`${o.targetId}-${o.kind}-${o.index}`} onClick={() => void doSteal(o)}>{o.label}</button>)}
+              <button className="ghost" data-pad="b" onClick={() => setStealFor(null)}>Never mind</button>
+            </div>
+          </div>
+        );
+      })()}
+      {tradeFor && (() => {
+        const a = state.units.find(u => u.id === tradeFor.a);
+        const partners = a ? tradePartners(state, a) : [];
+        const b = partners.find(u => u.id === tradeFor.b) ?? partners[0];
+        if (!a || !b) return null;
+        const side = (from: Unit, to: Unit) => (
+          <div style={{ flex: 1, display: 'grid', gap: 6, alignContent: 'start' }}>
+            <strong>{from.name} <small>{itemCount(from)}/{MAX_ITEMS} items</small></strong>
+            {from.weapons.map((w, i) => (
+              <button key={w.uid} disabled={wdef(w).tier >= 99 || !canTake(to)} title={wdef(w).tier >= 99 ? 'A personal weapon cannot be traded' : undefined}
+                onClick={() => doTrade(from.id, to.id, { kind: 'weapon', index: i })}>{weaponLabel(w)}</button>
+            ))}
+            {picksOf(from).map((p, i) => (
+              <button key={`pick${i}`} disabled={!canTake(to)} onClick={() => doTrade(from.id, to.id, { kind: 'pick', index: i })}>Lockpick {p}/{PICK_USES}</button>
+            ))}
+            {STACK_IDS.filter(k => (from[k] ?? 0) > 0).map(k => (
+              <button key={k} disabled={!canTake(to, k)} onClick={() => doTrade(from.id, to.id, { kind: k })}>{STACKS[k].name} ×{from[k]}</button>
+            ))}
+          </div>
+        );
+        return (
+          <div className="modal-back" onClick={() => setTradeFor(null)}>
+            <div className="pause" role="dialog" aria-label="Trade" style={{ minWidth: 440 }} onClick={e => e.stopPropagation()}>
+              <h3>Trade</h3>
+              <p style={{ margin: 0, opacity: .8 }}>Pick an item to hand it to the other unit. A pack holds {MAX_ITEMS} items; vulneraries, keys and dragonstones stack.</p>
+              <div style={{ display: 'flex', gap: 16 }}>{side(a, b)}{side(b, a)}</div>
+              {partners.filter(p => p.id !== b.id).map(p => <button key={p.id} className="ghost" onClick={() => setTradeFor({ a: a.id, b: p.id })}>Trade with {p.name} instead</button>)}
+              <button className="primary" data-pad="b" onClick={() => setTradeFor(null)}>Done</button>
+            </div>
+          </div>
+        );
+      })()}
       {levelUp && <LevelUpModal view={levelUp} onClose={() => continueRef.current?.()} />}
       {banner && (
         <div className={`phase-banner ${banner.tone}`}>

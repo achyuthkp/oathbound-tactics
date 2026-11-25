@@ -4,9 +4,10 @@ import { CHAPTERS } from '../src/game/data/chapters';
 import { TERRAIN } from '../src/game/data/terrain';
 import { CLASSES } from '../src/game/data/classes';
 import { WEAPONS } from '../src/game/data/weapons';
+import { PLAYER_TEMPLATES } from '../src/game/data/characters';
 import { planEnemy } from '../src/game/ai';
 import { forecast } from '../src/game/combat';
-import { applyAttack, applyHeal, createBattle, endEnemyPhase, endPlayerPhase, healTargets, markDone, outcome, parseMap, toResult } from '../src/game/battle';
+import { applyAttack, applyBurn, applyHeal, applyOpen, applyTransform, createBattle, endEnemyPhase, endPlayerPhase, healTargets, markDone, outcome, parseMap, toResult } from '../src/game/battle';
 import { addRecruits, enterCamp, mergeBattle, newCampaign } from '../src/game/campaign';
 import { gainExp } from '../src/game/progression';
 import type { BattleState, Campaign } from '../src/game/types';
@@ -28,8 +29,25 @@ const fail = (m: string) => { errors++; console.log('ERROR', m); };
 
 // ---- data validation
 CHAPTERS.forEach((ch, ci) => {
-  if (ch.map.length !== 10) fail(`ch${ci} rows ${ch.map.length}`);
-  ch.map.forEach((r, y) => r.length !== 14 && fail(`ch${ci} row ${y} len ${r.length}`));
+  ch.map.forEach((r, y) => r.length !== ch.map[0].length && fail(`ch${ci} row ${y} len ${r.length}`));
+  if (ch.map[0].length > 64) fail(`ch${ci} wider than 64 tiles`);
+  for (const h of ch.houses ?? []) {
+    if (parseMap(ch.map)[h.y]?.[h.x] !== 'house') fail(`ch${ci} house at ${h.x},${h.y} is not on a house tile`);
+    if (h.weapon && !WEAPONS[h.weapon]) fail(`ch${ci} house weapon ${h.weapon}`);
+    if (h.recruit && !PLAYER_TEMPLATES[h.recruit]) fail(`ch${ci} house recruit ${h.recruit}`);
+  }
+  for (const h of ch.chests ?? []) {
+    if (parseMap(ch.map)[h.y]?.[h.x] !== 'chest') fail(`ch${ci} chest at ${h.x},${h.y} is not on a chest tile`);
+    if (h.weapon && !WEAPONS[h.weapon]) fail(`ch${ci} chest weapon ${h.weapon}`);
+  }
+  for (const sp of [...ch.enemies, ...(ch.reinforcements ?? []).flatMap(r => r.units)]) {
+    if (sp.ai === 'loot' && !CLASSES[sp.classId].steals) fail(`ch${ci} ${sp.classId} cannot loot; only thieves open chests`);
+  }
+  if (ch.playerStarts.length > 10) fail(`ch${ci} more than 10 player starts`);
+  parseMap(ch.map).forEach((row, y) => row.forEach((t, x) => {
+    if (t === 'chest' && !(ch.chests ?? []).some(h => h.x === x && h.y === y)) fail(`ch${ci} chest tile at ${x},${y} has no contents`);
+    if (t === 'house' && !(ch.houses ?? []).some(h => h.x === x && h.y === y)) fail(`ch${ci} house tile at ${x},${y} has no reward`);
+  }));
   const map = parseMap(ch.map);
   const seen = new Set<string>();
   const check = (x: number, y: number, cls: string, what: string) => {
@@ -42,6 +60,9 @@ CHAPTERS.forEach((ch, ci) => {
   ch.playerStarts.forEach((p, i) => check(p.x, p.y, 'cavalier', `start${i}`));
   ch.enemies.forEach((e, i) => { check(e.x, e.y, e.classId, `enemy${i}`); e.weapons.forEach(w => !WEAPONS[w] && fail(`weapon ${w}`)); });
   if (ch.enemies.length > 10) fail(`ch${ci} too many enemies`);
+  for (const sp of [...ch.enemies, ...(ch.reinforcements ?? []).flatMap(r => r.units)]) {
+    if (sp.ai === 'raid' && !CLASSES[sp.classId].raids) fail(`ch${ci} ${sp.classId} cannot raid; only brigands burn houses`);
+  }
   if (ch.objective.type === 'seize' && map[ch.objective.y][ch.objective.x] !== 'throne') fail('seize tile');
 });
 
@@ -75,6 +96,9 @@ function enemyTurn(s: BattleState): BattleState {
     const to = plan.path[plan.path.length - 1];
     if (plan.path.length > 1 && s.units.some(o => o.id !== id && o.x === to.x && o.y === to.y)) fail('AI moved onto occupied tile');
     s = { ...s, units: s.units.map(x => x.id === id ? { ...x, x: to.x, y: to.y } : x) };
+    if (plan.raid) { const b = applyBurn(s, id); if (!b) fail('raid plan with nothing to burn'); else s = b; }
+    if (plan.loot) { const o = applyOpen(s, id, plan.loot, 'pick'); if (!o) fail('loot plan with nothing to open'); else s = o.state; }
+    if (plan.transform) { const t = applyTransform(s, id); if (!t) fail('transform plan that cannot transform'); else s = t; }
     if (plan.attack) s = applyAttack(s, id, plan.attack.targetId, plan.attack.weaponIdx, Math.random).state;
     if (s.units.some(x => x.id === id)) s = markDone(s, id);
     if (outcome(s) !== 'ongoing') return s;

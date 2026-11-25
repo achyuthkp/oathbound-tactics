@@ -210,7 +210,7 @@ export function WorldMap({ chapterIndex, roster, onDone }: Props) {
               const u = walkers[i];
               return (
                 <div key={u.id} className="wm-walker" style={{ left: p.x - FIG / 2, top: p.y - footY, zIndex: Math.round(p.y) + (walkers.length - i) }}>
-                  <Figure look={lookFor(u)} build={buildFor(u, { dismount: true })} weapon={CLASSES[u.classId].weapons[0]} pose={arrived ? 'idle' : 'walk'} facing={p.facing} size={FIG} />
+                  <Figure look={lookFor(u)} build={buildFor(u, { dismount: true })} weapon={CLASSES[u.classId].weapons[0]} weaponId={u.weapons[u.equipped]?.defId} pose={arrived ? 'idle' : 'walk'} facing={p.facing} size={FIG} />
                 </div>
               );
             })}

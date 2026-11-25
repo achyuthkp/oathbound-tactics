@@ -2,7 +2,7 @@ import { TERRAIN } from './data/terrain';
 import { pairKey } from './data/supports';
 import { manhattan } from './pathfinding';
 import type { BattleState, Pos, Unit, WeaponDef, WeaponType } from './types';
-import { canWield, isFlying, wdef } from './units';
+import { classOf, canWield, isFlying, wdef } from './units';
 
 export type RNG = () => number;
 
@@ -91,8 +91,8 @@ function side(s: BattleState, u: Unit, uPos: Pos, idx: number | null, foe: Unit,
   const inst = u.weapons[idx];
   const w = wdef(inst);
   const tri = triangle(w.type, foeHeld?.type);
-  const effective = !!w.effectiveVsFlying && isFlying(foe);
-  const might = (w.might + inst.forge) * (effective ? 2 : 1);
+  const effective = !!w.effective?.includes(classOf(foe).moveType);
+  const might = (w.might + inst.forge) * (effective ? 3 : 1);
   const tb = terrainBonus(s, foe, foePos);
   const foeBond = bondBonus(s, foe, foePos);
   const dmg = Math.max(0, u.stats.str + might + tri * TRIANGLE_DMG - (foe.stats.def + tb.def));

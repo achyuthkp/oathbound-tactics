@@ -59,7 +59,7 @@ export function CombatScene({ att, def, fc, strikes, terrain, onDone }: Props) {
         const foeHp = foe === 'att' ? st.attHp : st.defHp;
         if (st.crit) { setCue(who); await wait(450); }
         setPose(who, p);
-        if (wt !== 'bow') setDash(who);
+        if (wt !== 'bow' && wt !== 'breath') setDash(who); // archers and dragons strike from where they stand
         if (p === 'shoot') {
           await wait(390);
           setArrow({ by: who, n: Math.random() });
@@ -120,6 +120,7 @@ export function CombatScene({ att, def, fc, strikes, terrain, onDone }: Props) {
           look={lookFor(u)}
           build={buildFor(u)}
           weapon={fc[role].weaponType}
+          weaponId={fc[role].weaponIdx == null ? undefined : u.weapons[fc[role].weaponIdx!]?.defId}
           pose={poses[role]}
           facing={slot === 'L' ? 'right' : 'left'}
           size={240}

@@ -3,11 +3,44 @@ import { canAttackAt, forecast, type Forecast } from './combat';
 import { computeReach, destinations, key, manhattan, pathTo, unitAt, type ReachNode } from './pathfinding';
 import type { BattleState, Pos, Unit } from './types';
 import { attackWeapons, classOf, isFlying, movOf, wdef } from './units';
+import { canTransform, openChests, openHouses, openTools, shutDoors } from './battle';
 
 export interface AIPlan {
   unitId: string;
   path: Pos[];
   attack?: { targetId: string; weaponIdx: number };
+  /** The unit ends its move on this house and burns it. */
+  raid?: Pos;
+  /** A thief ends its move at this lock and picks it: a chest to empty, or a door in the way. */
+  loot?: Pos;
+  /** A dragonkin spends its action taking dragon form. */
+  transform?: boolean;
+}
+
+/** Walk a route as far as this turn's movement allows, stopping on the last free tile. */
+function advanceAlong(s: BattleState, unit: Unit, full: Map<number, ReachNode>, route: Pos[]): Pos[] {
+  const m = movOf(unit);
+  let end = 0;
+  for (let i = 0; i < route.length; i++) {
+    if (full.get(key(route[i].x, route[i].y))!.cost > m) break;
+    if (!unitAt(s, route[i].x, route[i].y, unit.id)) end = i;
+  }
+  return route.slice(0, end + 1);
+}
+
+/** Head for the nearest of some tiles (houses to burn, chests to empty). Null when none can be reached. */
+function planGoTo(s: BattleState, unit: Unit, places: Pos[]): { path: Pos[]; arrived?: Pos } | null {
+  const full = computeReach(s, unit, Number.POSITIVE_INFINITY);
+  let goal: ReachNode | null = null;
+  for (const h of places) {
+    const node = full.get(key(h.x, h.y));
+    if (!node || unitAt(s, h.x, h.y, unit.id)) continue; // unreachable, or someone is standing in the doorway
+    if (!goal || node.cost < goal.cost) goal = node;
+  }
+  if (!goal) return null;
+  const path = advanceAlong(s, unit, full, pathTo(full, goal.x, goal.y));
+  const last = path[path.length - 1];
+  return { path, arrived: last.x === goal.x && last.y === goal.y ? { x: goal.x, y: goal.y } : undefined };
 }
 
 function scoreAttack(s: BattleState, fc: Forecast, unit: Unit, target: Unit, at: Pos): number {
@@ -29,8 +62,28 @@ function scoreAttack(s: BattleState, fc: Forecast, unit: Unit, target: Unit, at:
  *  - aggressive: attack the best target in reach, otherwise march toward the nearest player.
  *  - guard: wait in place until a player wanders into reach (or it is attacked).
  *  - hold: never moves; attacks anyone in range of its current tile (bosses, gatekeepers).
+ *  - raid (brigands only: the class must have `raids`): ignores the army and goes to burn houses; a unit standing on a house protects it.
+ *    With nothing left to burn (or reach) it fights like an aggressive unit.
+ *  - loot (thieves only: the class must have `steals`): goes for the nearest unopened chest and
+ *    empties it, picking a door on the way if the chests are locked in, then fights like an aggressive unit. Defeating it returns what it took.
  */
 export function planEnemy(s: BattleState, unit: Unit): AIPlan {
+  if (unit.ai === 'raid' && classOf(unit).raids) {
+    const go = planGoTo(s, unit, openHouses(s));
+    if (go) return { unitId: unit.id, path: go.path, raid: go.arrived };
+  }
+  if (unit.ai === 'loot' && openTools(unit).includes('pick')) {
+    const go = planGoTo(s, unit, openChests(s));
+    if (go) return { unitId: unit.id, path: go.path, loot: go.arrived };
+    // every chest left is behind a lock: go and pick the nearest door
+    const doors = shutDoors(s);
+    const by = planGoTo(s, unit, doors.flatMap(d => [[0, -1], [1, 0], [0, 1], [-1, 0]].map(([dx, dy]) => ({ x: d.x + dx, y: d.y + dy }))));
+    if (by) return { unitId: unit.id, path: by.path, loot: by.arrived && doors.find(d => manhattan(d, by.arrived!) === 1) };
+  }
+  // a dragonkin with a stone left changes shape as soon as a fight is close
+  if (canTransform(unit) && s.units.some(t => t.team !== unit.team && manhattan(t, unit) <= movOf(unit))) {
+    return { unitId: unit.id, path: [{ x: unit.x, y: unit.y }], transform: true };
+  }
   const here = { x: unit.x, y: unit.y };
   const stay: AIPlan = { unitId: unit.id, path: [here] };
   const reach = computeReach(s, unit);
@@ -54,7 +107,7 @@ export function planEnemy(s: BattleState, unit: Unit): AIPlan {
     const path = unit.ai === 'hold' ? [here] : pathTo(reach, best.to.x, best.to.y);
     return { unitId: unit.id, path, attack: { targetId: best.targetId, weaponIdx: best.widx } };
   }
-  if (unit.ai !== 'aggressive') return stay;
+  if (unit.ai !== 'aggressive' && unit.ai !== 'raid' && unit.ai !== 'loot') return stay;
 
   // Advance: find the cheapest tile from which some target would be in range, then walk toward it.
   const full = computeReach(s, unit, Number.POSITIVE_INFINITY);
@@ -66,13 +119,5 @@ export function planEnemy(s: BattleState, unit: Unit): AIPlan {
     if (!goal || node.cost < goal.cost) goal = node;
   }
   if (!goal) return stay;
-  const route = pathTo(full, goal.x, goal.y);
-  const m = movOf(unit);
-  let end = 0;
-  for (let i = 0; i < route.length; i++) {
-    const node = full.get(key(route[i].x, route[i].y))!;
-    if (node.cost > m) break;
-    if (!unitAt(s, route[i].x, route[i].y, unit.id)) end = i;
-  }
-  return { unitId: unit.id, path: route.slice(0, end + 1) };
+  return { unitId: unit.id, path: advanceAlong(s, unit, full, pathTo(full, goal.x, goal.y)) };
 }

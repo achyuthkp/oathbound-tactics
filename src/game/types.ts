@@ -1,9 +1,9 @@
-export type WeaponType = 'sword' | 'lance' | 'axe' | 'bow' | 'staff';
+export type WeaponType = 'sword' | 'lance' | 'axe' | 'bow' | 'staff' | 'breath';
 export type Team = 'player' | 'enemy';
 export type MoveType = 'foot' | 'armor' | 'horse' | 'flying';
 export type TerrainId =
-  | 'plains' | 'road' | 'forest' | 'hills' | 'mountain' | 'water' | 'desert' | 'wall' | 'fort' | 'bridge' | 'throne';
-export type AIMode = 'aggressive' | 'guard' | 'hold';
+  | 'plains' | 'road' | 'forest' | 'hills' | 'mountain' | 'water' | 'desert' | 'wall' | 'fort' | 'bridge' | 'throne' | 'house' | 'building' | 'ruins' | 'chest' | 'door' | 'gate' | 'doorway' | 'gateway';
+export type AIMode = 'aggressive' | 'guard' | 'hold' | 'raid' | 'loot';
 export type StatKey = 'hp' | 'str' | 'skl' | 'spd' | 'lck' | 'def';
 export type Stats = Record<StatKey, number>;
 
@@ -28,11 +28,16 @@ export interface WeaponDef {
   /** Shop tier. 99 = personal / enemy-only, never sold. */
   tier: number;
   heal?: number;
-  effectiveVsFlying?: boolean;
+  /** Triple might against units that move this way: 'armor' knights, 'horse' cavalry, 'flying' pegasi and wyverns. */
+  effective?: MoveType[];
   desc?: string;
 }
 
-export interface WeaponInstance { uid: string; defId: string; forge: number; }
+export interface WeaponInstance {
+  uid: string; defId: string; forge: number;
+  /** Uses left before it breaks. Unset means untouched (see maxUses); personal weapons never wear. */
+  uses?: number;
+}
 
 export interface ClassDef {
   id: string;
@@ -40,6 +45,12 @@ export interface ClassDef {
   weapons: WeaponType[];
   moveType: MoveType;
   mov: number;
+  /** This class can burn houses (see ai 'raid'). */
+  raids?: boolean;
+  /** This class can steal from adjacent enemies and open treasure chests. */
+  steals?: boolean;
+  /** This class takes dragon form by spending a dragonstone. */
+  shifts?: boolean;
   base: Stats;
   growth: Stats;
   desc: string;
@@ -58,6 +69,18 @@ export interface Unit {
   weapons: WeaponInstance[];
   equipped: number;
   potions: number;
+  /** Dragonstones carried (shifting classes only). */
+  stones?: number;
+  /** In dragon form: own turns remaining. The form's stat bonus is already added to `stats`. */
+  dragon?: number;
+  /** Gold's worth of treasure an enemy thief is carrying; dropped when it is defeated. */
+  loot?: number;
+  /** Lockpicks carried, as uses left on each. Every lockpick is its own item; only thieves can use them. */
+  picks?: number[];
+  /** Keys carried. Each opens one chest, door or gate. An enemy's key goes to whoever defeats (or robs) it. */
+  keys?: number;
+  /** Left at camp: not deployed in the next battle. */
+  reserve?: boolean;
   isLord?: boolean;
   isBoss?: boolean;
   ai?: AIMode;
@@ -84,6 +107,8 @@ export interface EnemySpawn {
   name?: string;
   isBoss?: boolean;
   lookId?: string;
+  /** Carries a key. */
+  key?: boolean;
   statBonus?: Partial<Stats>;
 }
 
@@ -91,6 +116,21 @@ export interface Reinforcement { turn: number; units: EnemySpawn[]; }
 
 export type Mood = 'neutral' | 'happy' | 'angry' | 'sad' | 'surprised';
 export interface DialogueLine { speaker: string; text: string; mood?: Mood; }
+
+/** A house a player unit can visit once, by ending a move on it. Exactly one reward. */
+export interface House {
+  x: number;
+  y: number;
+  /** What the occupant says. */
+  text: string;
+  gold?: number;
+  /** Weapon id; goes to the visitor, or is sold for half price if their pack is full. */
+  weapon?: string;
+  /** A vulnerary. */
+  potion?: boolean;
+  /** Character id who joins the army after the battle (rare). */
+  recruit?: string;
+}
 
 export interface Chapter {
   number: number;
@@ -102,6 +142,9 @@ export interface Chapter {
   enemies: EnemySpawn[];
   reinforcements?: Reinforcement[];
   recruits?: string[];
+  houses?: House[];
+  /** Treasure chests (on 'chest' tiles). Opened from the tile or beside it, by a thief's lockpick or anyone's key. */
+  chests?: House[];
   pre: DialogueLine[];
   post: DialogueLine[];
   reward: number;
@@ -149,4 +192,12 @@ export interface BattleState {
   log: string[];
   seized: boolean;
   enemyCounter: number;
+  /** Houses already visited, as "x,y". */
+  visited?: string[];
+  /** Chests already opened, as "x,y". */
+  opened?: string[];
+  /** Houses burned down by raiders, as "x,y". Their rewards are lost. */
+  burned?: string[];
+  /** Characters who agreed to join after this battle. */
+  recruited?: string[];
 }

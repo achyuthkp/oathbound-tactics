@@ -152,14 +152,48 @@ export const PROFILES: Record<string, Profile> = {
 };
 
 /** Generic enemy types, shown for nameless units. */
+PROFILES.pip = {
+  id: 'pip', name: 'Pip Marlowe', title: 'Lockpick of Dunmarch', age: '30', classId: 'thief', height: '163 cm', side: 'ally',
+  origin: 'Grew up in the Dunmarch rookeries opening doors for people who did not own them. Was in Varn\'s stockade for exactly that when the bridge fell, and decided the winning side had better locks to practise on.',
+  personality: 'Quick, cheerful and entirely unembarrassed. Returns most of what gets borrowed.',
+  appearance: 'Small and wiry under a moss-green hooded cloak, a cloth mask pulled up over the nose, and a belt hung with picks and pouches.',
+  combat: 'Fast and frail. Steals weapons and vulneraries from any adjacent enemy that is not quicker, and opens chests, doors and gates with lockpicks, no key needed.',
+  likes: 'Complicated locks, other people\'s lunches.', dislikes: 'Dogs. Honest work before noon.',
+  quote: 'I didn\'t take it. I relocated it. To me.',
+  design: 'A utility unit: weak in a straight fight, but disarming a dangerous enemy before the knights arrive changes the whole engagement.',
+};
+PROFILES.sable = {
+  id: 'sable', name: 'Sable', title: 'Last of the Dragonkin', age: 'Looks 30', classId: 'manakete', height: '170 cm', side: 'ally',
+  origin: 'One of the dragonkin who slept under Highmoor long before there was a kingdom on top of it. Morwen\'s garrison woke her by digging too deep. She has not decided what she thinks of the present century.',
+  personality: 'Courteous, remote and very old. Treats the war as weather. Fiercely protective of the few people she has bothered to learn the names of.',
+  appearance: 'Violet-black hair, two small curved horns, pale skin, and a dark robe. She carries her dragonstone in her hand like a lantern.',
+  combat: 'Cannot fight in human form. Spending a dragonstone makes her a violet dragon for three turns, with far higher strength and defence and fire breath that reaches two tiles.',
+  likes: 'High places, silence, warm stone.', dislikes: 'Being woken. Being ridden.',
+  quote: 'I was old when your first king was a rumour. Do try to keep up.',
+  design: 'A limited resource: three dragonstones a battle is nine turns of the strongest unit in the army, and a liability the rest of the time.',
+};
+PROFILES.osric = {
+  id: 'osric', name: 'Osric Hale', title: 'Woodward of the Whispering Wood', age: '39', classId: 'soldier', height: '184 cm', side: 'ally',
+  origin: 'A sergeant of the old royal levy who took a woodward\'s post after the border war and has kept the Whispering Wood for twelve years. He only joins if someone knocks on his door.',
+  personality: 'Dry, unhurried, and allergic to speeches. Counts everything: paces, arrows, the days since he last had to kill anyone.',
+  appearance: 'Greying cropped hair, a scar through one brow, and his old levy breastplate worn over forester\'s green.',
+  combat: 'A steady lance on foot. No mount, no tricks; he holds a line and is hard to move off it.',
+  likes: 'Split oak, quiet mornings, a well-kept edge.', dislikes: 'Banners, and the men who wave them.',
+  quote: 'Twelve years I kept this wood. Suppose I can keep you lot alive for a few weeks.',
+  design: 'The only companion who is not met in the story: he waits in a house on the edge of the Chapter 3 map and is missed entirely if no one visits.',
+};
+
 export const ARCHETYPES: Record<string, Profile> = Object.fromEntries(([
-  ['brigand', 'Ashen Brigand', 'Raiders who follow the Imperial army for its leftovers. Mostly deserters and desperate farmers.', 'Axes. Strong and inaccurate; swords beat them.'],
+  ['brigand', 'Ashen Brigand', 'Raiders who follow the Imperial army for its leftovers. Mostly deserters and desperate farmers.', 'Axes. Strong and inaccurate; swords beat them. They carry torches, and they are the only enemies who burn houses.'],
   ['fighter', 'Imperial Axeman', 'Shock infantry recruited from the Empire\'s mining provinces.', 'Heavy axes. They break lance lines.'],
   ['soldier', 'Imperial Soldier', 'The backbone of the occupation: conscripts in red tabards, many of them Aldmere-born.', 'Lances. Dangerous to sword users.'],
   ['knight', 'Imperial Knight', 'Armoured veterans who hold gates and bridges.', 'Very high defense, slow. Use axes or forged weapons.'],
   ['myrmidon', 'Ashen Blade', 'Duelists trained in the Regent\'s own school.', 'Fast swords with high critical rates.'],
   ['archer', 'Imperial Archer', 'Tower garrison bowmen.', 'Range 1–2. Keep fliers away from them.'],
   ['cavalier', 'Imperial Cavalier', 'Mounted raiders who run down stragglers.', 'Swords and lances, high movement.'],
+  ['thief', 'Ashen Cutpurse', 'Camp followers who slip into a castle ahead of the army for whatever is not nailed down.', 'They head straight for the treasure chests and empty them. Defeat one that has looted and it drops everything it took.'],
+  ['manakete', 'Ashen Dragonkin', 'One of the old dragon-blooded, bound to the Regent\'s service.', 'Harmless until it changes shape, which it does the moment you come close. As a dragon it breathes fire two tiles and shrugs off most blows; wait it out or bring it down fast.'],
+  ['wyvern', 'Imperial Wyvern Rider', 'The Ashen Empire\'s heavy cavalry of the air, mounted on red wyverns bred in the northern mountains.', 'Axes from above. Tough and hard-hitting but slow; bows bring them down and swords out-duel them.'],
   ['skyknight', 'Imperial Sky Knight', 'Pegasus riders taken from conquered kingdoms\' stables.', 'Fly over terrain. Weak to bows.'],
 ] as const).map(([id, name, origin, combat]) => [id, {
   id, name, title: 'Enemy unit', age: 'Late 20s to 30s', classId: id, height: 'Varies', side: 'archetype' as const,
@@ -171,5 +205,5 @@ export function profileFor(u: { id: string; classId: string; lookId?: string }):
   return PROFILES[u.lookId ?? u.id] ?? ARCHETYPES[u.classId];
 }
 
-export const ALLY_IDS = ['kael', 'lyra', 'brann', 'seren', 'mira', 'tomas', 'rei', 'ilse'];
+export const ALLY_IDS = ['kael', 'lyra', 'brann', 'seren', 'mira', 'tomas', 'rei', 'ilse', 'osric', 'pip', 'sable'];
 export const NPC_IDS = ['gorran', 'varn', 'morwen', 'malrec'];

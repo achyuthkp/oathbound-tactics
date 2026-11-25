@@ -95,6 +95,73 @@ const SEAT = [
 ];
 const SEAT_PAL = { g: '#b58a24', y: '#e2be55', r: '#9a2c40', d: '#7a5a14' };
 
+/* A cottage with an open, lit doorway; once visited (mask 1) the door is shut and the windows dark. */
+const COTTAGE = [
+  '....rrrrrr....',
+  '...rRrrrrrr...',
+  '..rrrrRrrrrr..',
+  '.rrrrrrrrrrrr.',
+  'rrrrRrrrrrrrrd',
+  '.wwwwwwwwwwww.',
+  '.wwyywwwwyyww.',
+  '.wwyywoooyyww.',
+  '.wwwwwogowwww.',
+  '.wwwwwogowwww.',
+  '.kkkkkkkkkkkk.',
+];
+/* A town house: slate roof, timber frame. Scenery; nobody can enter it. */
+const TOWNHOUSE = [
+  '...ssssssssss...',
+  '..sSsssssSssss..',
+  '.sssssssssssssd.',
+  'ssssSssssssSsssd',
+  'sssssssssssssssd',
+  'tttttttttttttttt',
+  'twwtwwwwwwtwwwwt',
+  'twwtwbbwwwtwbbwt',
+  'twwtwbbwwwtwbbwt',
+  'tttttttttttttttt',
+  'twwtwwwwwwtwwwwt',
+  'twwtwbbwwwtwwwwt',
+  'twwtwbbwwwtwwwwt',
+  'kkkkkkkkkkkkkkkk',
+];
+
+/* What is left of a burned house: charred wall stubs (k) around scorched plaster (w). */
+const RUIN = [
+  '..k.......k...',
+  '.kk..k...kkk..',
+  '.kwk.kk..kwk..',
+  '.kwkkwk.kkwkk.',
+  '.kwwwwkkkwwwk.',
+  '.kwwkwwwwwkwk.',
+  '.kkkkkkkkkkkk.',
+];
+const RUIN_PAL = { k: '#2e2622', w: '#6b5c50' };
+
+/* A banded treasure chest (mask 0) and the same chest thrown open and empty (mask 1). */
+const CHEST = [
+  '.gggggggggg.',
+  'gwwwwggwwwwg',
+  'gwwwwggwwwwg',
+  'gggggyyggggg',
+  'gwwwwyywwwwg',
+  'gwwwwggwwwwg',
+  'gwwwwggwwwwg',
+  'kkkkkkkkkkkk',
+];
+const CHEST_OPEN = [
+  '.gggggggggg.',
+  'gWWWWWWWWWWg',
+  'gWWWWWWWWWWg',
+  '.gggggggggg.',
+  'gddddddddddg',
+  'gwwwwggwwwwg',
+  'gwwwwggwwwwg',
+  'kkkkkkkkkkkk',
+];
+const CHEST_PAL = { g: '#c9a23c', y: '#fff3b0', w: '#8a5a2a', W: '#6b4420', d: '#1e1410', k: '#3a2416' };
+
 const CACTUS = ['..g..', 'g.g..', 'g.g.g', 'gggdg', '..gd.', '..gd.', '..gd.'];
 const CACTUS_PAL = { g: '#4f9a4a', d: '#2f6b34' };
 
@@ -173,7 +240,7 @@ function drawTile(t: TerrainId, v: number, mask: number, odd: boolean): Canvas[]
       { const x = 2 + r(11), y = 2 + r(11); c.rect(x, y, 2, 1, '#8a7658'); c.set(x, y - 1, '#a8977a'); }
       break;
     }
-    case 'wall': {
+    case 'wall': case 'door': case 'gate': case 'doorway': case 'gateway': {
       c.rect(0, 0, 16, 16, '#6e6a78');
       for (let row = 0; row < 4; row++) {
         c.rect(0, row * 4, 16, 1, '#8a8696');
@@ -181,6 +248,41 @@ function drawTile(t: TerrainId, v: number, mask: number, odd: boolean): Canvas[]
         for (let x = row % 2 ? 3 : 7; x < 16; x += 8) c.rect(x, row * 4, 1, 3, '#45414d');
       }
       for (let i = 0; i < 3; i++) c.set(r(16), r(4) * 4 + 1, '#5a5664');
+      if (t === 'wall') break;
+      // an arched opening in the wall, x 3..12, with dressed-stone jambs
+      const open = t === 'doorway' || t === 'gateway', gate = t === 'gate' || t === 'gateway';
+      c.rect(2, 3, 12, 13, '#3a3642');
+      c.rect(3, 1, 10, 1, '#3a3642'); c.rect(2, 2, 12, 1, '#3a3642');
+      c.rect(2, 3, 1, 13, '#a7a3b3'); c.rect(13, 3, 1, 13, '#55515e');
+      c.rect(4, 1, 8, 1, '#a7a3b3'); c.set(3, 2, '#a7a3b3'); c.set(12, 2, '#55515e');
+      const fill = (col: string) => { c.rect(3, 3, 10, 13, col); c.rect(4, 2, 8, 1, col); };
+      if (open) {
+        // the passage: flagstones running through, dark under the arch
+        fill('#77727f');
+        c.rect(3, 9, 10, 1, '#5d5966'); c.rect(7, 2, 1, 7, '#5d5966'); c.rect(10, 10, 1, 6, '#5d5966'); c.rect(5, 10, 1, 6, '#5d5966');
+        c.rect(3, 3, 10, 2, '#4a4654'); c.rect(4, 2, 8, 1, '#4a4654');
+        if (gate) {
+          // portcullis hauled up: only its spiked foot shows under the arch
+          c.rect(3, 4, 10, 1, '#6b707c');
+          for (let x = 4; x < 12; x += 2) { c.rect(x, 2, 1, 5, '#8a8f9a'); c.set(x, 7, '#d5dae4'); }
+        } else {
+          // the leaf swung back against the left jamb, seen edge-on
+          c.rect(3, 3, 2, 13, '#6b4424'); c.rect(3, 3, 1, 13, '#8f6336'); c.rect(3, 6, 2, 1, '#3d3a44'); c.rect(3, 12, 2, 1, '#3d3a44');
+        }
+      } else if (gate) {
+        // iron portcullis: dark behind, a lattice of bars, a padlocked chain
+        fill('#1d1b22');
+        for (let x = 4; x < 12; x += 2) { c.rect(x, 2, 1, 14, '#8a8f9a'); c.set(x, 15, '#d5dae4'); }
+        for (const y of [5, 9, 13]) { c.rect(3, y, 10, 1, '#6b707c'); for (let x = 4; x < 12; x += 2) c.set(x, y, '#b9bec9'); }
+        c.rect(7, 8, 3, 3, '#e2b23c'); c.rect(7, 8, 3, 1, '#f6dc8a'); c.set(8, 9, '#3a2a10'); c.set(8, 7, '#b9bec9'); c.set(7, 7, '#6b707c'); c.set(9, 7, '#6b707c');
+      } else {
+        // oak planks, iron bands and studs, a brass lock plate
+        fill('#8f6336');
+        for (const x of [5, 8, 11]) c.rect(x, 2, 1, 14, '#6b4424');
+        c.rect(3, 3, 10, 1, '#a97a48');
+        for (const y of [5, 12]) { c.rect(3, y, 10, 1, '#3d3a44'); for (const x of [4, 7, 10]) c.set(x, y, '#9a96a6'); }
+        c.rect(10, 8, 2, 3, '#e2b23c'); c.rect(10, 8, 2, 1, '#f6dc8a'); c.set(10, 9, '#3a2a10');
+      }
       break;
     }
     case 'fort': {
@@ -201,6 +303,50 @@ function drawTile(t: TerrainId, v: number, mask: number, odd: boolean): Canvas[]
       for (let i = 0; i < 16; i += 2) { c.set(i, 0, '#b58a24'); c.set(i + 1, 15, '#b58a24'); c.set(0, i + 1, '#b58a24'); c.set(15, i, '#b58a24'); }
       c.rect(4, 13, 8, 1, '#571623');
       c.stamp(SEAT, 3, 3, SEAT_PAL);
+      break;
+    }
+    case 'chest': {
+      // strongroom flagstones
+      c.rect(0, 0, 16, 16, '#77727f');
+      for (let y = 0; y < 16; y += 8) { c.rect(0, y, 16, 1, '#5d5966'); for (let x = y % 16 ? 4 : 12; x < 16; x += 16) c.rect(x, y, 1, 8, '#5d5966'); }
+      c.rect(8, 0, 1, 8, '#5d5966');
+      for (let i = 0; i < 5; i++) c.set(r(16), r(16), '#8c8794');
+      c.rect(3, 13, 11, 1, '#4f4b58');
+      c.stamp(mask === 1 ? CHEST_OPEN : CHEST, 2, 5, CHEST_PAL);
+      if (mask !== 1) { c.set(4, 6, '#f3dd9a'); c.set(5, 6, '#f3dd9a'); }
+      break;
+    }
+    case 'ruins': {
+      // long-dead rubble: scorched earth, no fire left
+      grass(c, r, '#6f7f55', '#55633f', '#869468', false);
+      c.rect(2, 12, 12, 2, '#4a4038');
+      c.stamp(RUIN, 1, 6 - (v % 2), RUIN_PAL);
+      for (let i = 0; i < 4; i++) c.set(2 + r(12), 13 + r(2), '#8a7a6a');
+      break;
+    }
+    case 'house': {
+      grass(c, r, '#79a352', '#5a8a3e', '#93bf62', false);
+      if (mask === 2) {
+        // freshly burned: blackened ground, embers still glowing, smoke rising
+        c.rect(1, 12, 14, 3, '#3a322c');
+        c.stamp(RUIN, 1, 6, RUIN_PAL);
+        for (const [x, y] of [[4, 11], [8, 12], [11, 11], [6, 9]]) { c.set(x, y, '#e0662a'); c.set(x, y - 1, '#ffb84a'); }
+        for (const [x, y] of [[7, 4], [8, 2], [6, 1], [9, 5]]) c.set(x, y, '#8a8480');
+        break;
+      }
+      c.rect(2, 14, 12, 1, '#4f7c3a');
+      const shut = mask === 1;
+      c.stamp(COTTAGE, 1, 3, {
+        r: '#b5553c', R: '#d27a58', d: '#7c3526', w: '#e9dcbc', k: '#6b5c48',
+        y: shut ? '#6f7787' : '#ffd96a', o: shut ? '#7a5a34' : '#3a2416', g: shut ? '#5f4426' : '#ffb84a',
+      });
+      c.rect(10, 0, 2, 3, '#8a7a6a'); // chimney
+      if (!shut) { c.set(10 + (v % 2), 0, '#d9d4cc'); c.rect(7, 14, 3, 1, '#c9b074'); }
+      break;
+    }
+    case 'building': {
+      c.rect(0, 0, 16, 16, '#8a8272');
+      c.stamp(TOWNHOUSE, 0, 1, { s: '#5a6478', S: '#7684a0', d: '#3f4656', t: '#5a4630', w: '#e2d5b4', b: v % 2 ? '#5f86c4' : '#ffd96a', k: '#3f372f' });
       break;
     }
     default:

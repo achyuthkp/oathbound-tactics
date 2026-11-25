@@ -1,15 +1,17 @@
 import { useMemo, useState } from 'react';
-import { CHARACTERS, buildFor, lookById, lookFor } from '../game/data/characters';
+import { CHARACTERS, ELEMENTS, buildFor, lookById, lookFor, type Element } from '../game/data/characters';
 import { CLASSES } from '../game/data/classes';
 import { ALLY_IDS, ARCHETYPES, NPC_IDS, PROFILES } from '../game/data/profiles';
 import { TERRAIN } from '../game/data/terrain';
+import { WEAPONS } from '../game/data/weapons';
 import type { TerrainId, WeaponType } from '../game/types';
 import { Portrait, TileArt, type Mood } from './art';
 import { Figure, SCENARIO_POSES, attackPose, type Pose } from './figure';
+import { DRAGON_POSES, GREAT_DRAGON_ATTACKS, GreatDragon, type DragonPose } from './greatdragon';
 
 /** Sprite browser: open the game with #sprites to see every sprite the game can draw, with filters. */
 
-type Group = 'Companions' | 'Villains' | 'Enemy types' | 'Terrain';
+type Group = 'Companions' | 'Villains' | 'Enemy types' | 'Dragons' | 'Terrain';
 interface Entry {
   key: string;
   kind: 'Sprites' | 'Portraits' | 'Tiles';
@@ -20,8 +22,16 @@ interface Entry {
   /** Pose for sprites, expression for portraits. */
   pose: string;
   weapon?: WeaponType;
-  mount: 'On foot' | 'Horse' | 'Pegasus';
+  /** A specific weapon, e.g. 'silver_sword'. */
+  weaponId?: string;
+  mount: 'On foot' | 'Horse' | 'Pegasus' | 'Wyvern';
   dismounted?: boolean;
+  /** A dragonkin in dragon form. */
+  dragon?: boolean;
+  /** A dragonkin of this element (the "Dragons" group). */
+  element?: Element;
+  /** The multi-tile dark dragon, in this pose. */
+  great?: DragonPose;
   /** Tiles: position (picks the variant) and which sides touch land (water only). */
   tile?: { x: number; y: number; mask: number };
   rules?: string;
@@ -47,13 +57,35 @@ function allEntries(): Entry[] {
         for (const pose of poses) {
           out.push({
             ...base, kind: 'Sprites', pose, weapon, dismounted,
-            mount: dismounted || !mount ? 'On foot' : mount === 'horse' ? 'Horse' : 'Pegasus',
+            mount: dismounted || !mount ? 'On foot' : mount === 'horse' ? 'Horse' : mount === 'wyvern' ? 'Wyvern' : 'Pegasus',
             key: `s-${id}-${weapon}-${pose}-${dismounted}`,
           });
         }
       }
     }
+    // a dragonkin's other shape
+    if (CLASSES[p.classId].shifts) {
+      for (const pose of ['idle', 'walk', 'breath', 'hit', 'dodge', 'die', 'victory', 'wounded', 'rest'] as Pose[]) {
+        out.push({ ...base, kind: 'Sprites', pose, weapon: 'breath', dragon: true, mount: 'On foot', key: `d-${id}-${pose}` });
+      }
+    }
+    // each specific weapon the class can wield, in hand
+    for (const w of Object.values(WEAPONS)) {
+      if (!CLASSES[p.classId].weapons.includes(w.type)) continue;
+      out.push({ ...base, kind: 'Sprites', pose: 'idle', weapon: w.type, weaponId: w.id, mount: !mount ? 'On foot' : mount === 'horse' ? 'Horse' : mount === 'wyvern' ? 'Wyvern' : 'Pegasus', key: `w-${id}-${w.id}` });
+    }
     if (CHARACTERS[id]) for (const mood of MOODS) out.push({ ...base, kind: 'Portraits', pose: mood, mount: 'On foot', key: `p-${id}-${mood}` });
+  }
+  // dragonkin of each element: the person, then the dragon
+  for (const el of Object.keys(ELEMENTS) as Element[]) {
+    const base = { id: 'manakete', name: ELEMENTS[el].name, group: 'Dragons' as Group, classId: 'manakete', element: el, mount: 'On foot' as const, weapon: 'breath' as WeaponType };
+    for (const pose of ['idle', 'walk', 'breath'] as Pose[]) out.push({ ...base, kind: 'Sprites', pose, key: `eh-${el}-${pose}` });
+    for (const pose of ['idle', 'walk', 'breath', 'hit', 'dodge', 'die', 'victory', 'wounded', 'rest'] as Pose[]) out.push({ ...base, kind: 'Sprites', pose, dragon: true, key: `ed-${el}-${pose}` });
+  }
+  // the dark dragon itself: three tiles by three
+  for (const pose of DRAGON_POSES) {
+    const atk = GREAT_DRAGON_ATTACKS.find(a => a.pose === pose);
+    out.push({ kind: 'Sprites', id: 'great', name: 'The Dark Dragon', group: 'Dragons', classId: '', mount: 'On foot', pose: atk ? `${pose}: ${atk.name}` : pose, great: pose, rules: atk?.note ?? 'Occupies 3×3 tiles', key: `g-${pose}` });
   }
   // every terrain in its four variants; water also with banks on one side, two sides and all round
   for (const t of Object.keys(TERRAIN) as TerrainId[]) {
@@ -73,12 +105,12 @@ const ENTRIES = allEntries();
 const uniq = (xs: string[]) => [...new Set(xs)];
 const OPTIONS = {
   kind: ['Sprites', 'Portraits', 'Tiles'],
-  group: ['Companions', 'Villains', 'Enemy types', 'Terrain'],
+  group: ['Companions', 'Villains', 'Enemy types', 'Dragons', 'Terrain'],
   name: uniq(ENTRIES.map(e => e.name)),
   classId: uniq(ENTRIES.map(e => e.classId)).filter(Boolean),
   pose: uniq(ENTRIES.map(e => e.pose)),
   weapon: uniq(ENTRIES.flatMap(e => (e.weapon ? [e.weapon] : []))),
-  mount: ['On foot', 'Horse', 'Pegasus'],
+  mount: ['On foot', 'Horse', 'Pegasus', 'Wyvern'],
 };
 type FilterKey = keyof typeof OPTIONS;
 const LABELS: Record<FilterKey, string> = {
@@ -96,7 +128,7 @@ export function SpriteBrowser() {
     const q = query.trim().toLowerCase();
     return ENTRIES.filter(e =>
       (Object.keys(filters) as FilterKey[]).every(k => !filters[k] || e[k] === filters[k])
-      && (!q || `${e.name} ${CLASSES[e.classId]?.name ?? 'terrain tile'} ${e.pose} ${e.weapon ?? ''} ${e.group} ${e.mount}`.toLowerCase().includes(q)));
+      && (!q || `${e.name} ${CLASSES[e.classId]?.name ?? (e.great ? 'dragon boss' : 'terrain tile')} ${e.pose} ${e.weapon ?? ''} ${e.weaponId ? WEAPONS[e.weaponId].name : ''} ${e.group} ${e.mount} ${e.dragon ? 'dragon form' : ''}`.toLowerCase().includes(q)));
   }, [filters, query]);
 
   return (
@@ -124,12 +156,14 @@ export function SpriteBrowser() {
           const u = { id: e.id, classId: e.classId, lookId: CHARACTERS[e.id] ? e.id : undefined };
           return (
             <figure key={`${e.key}-${replay}`}>
-              {e.tile
+              {e.great
+                ? <div style={{ padding: `${size * 0.3}px ${size}px 0 ${size * 0.7}px` }}><GreatDragon pose={e.great} facing={left ? 'left' : 'right'} size={size * 2} /></div>
+                : e.tile
                 ? <div className="sb-tile" style={{ width: size * 0.75, height: size * 0.75 }} title={e.rules}><TileArt t={e.id as TerrainId} x={e.tile.x} y={e.tile.y} mask={e.tile.mask} /></div>
                 : e.kind === 'Portraits'
                 ? <Portrait look={lookById(e.id)} mood={e.pose === 'talking' ? 'neutral' : e.pose as Mood} talking={e.pose === 'talking'} size={size * 0.8} className={left ? 'sb-flip' : ''} />
-                : <Figure look={lookFor(u)} build={buildFor(u, { dismount: e.dismounted })} weapon={e.weapon} pose={e.pose as Pose} facing={left ? 'left' : 'right'} size={size} />}
-              <figcaption><b>{e.name}</b>{e.pose}{e.weapon ? ` · ${e.weapon}` : ''}{e.dismounted ? ' · dismounted' : ''}{e.rules && <small>{e.rules}</small>}</figcaption>
+                : <Figure look={e.element ? { ...lookFor(u), accent: ELEMENTS[e.element].coat, eyes: ELEMENTS[e.element].eye, cloth: e.element === 'light' ? '#e8e2d0' : lookFor(u).cloth } : lookFor(u)} build={buildFor({ ...u, dragon: e.dragon ? 1 : undefined }, { dismount: e.dismounted, element: e.element })} weapon={e.weapon} weaponId={e.weaponId} pose={e.pose as Pose} facing={left ? 'left' : 'right'} size={size} />}
+              <figcaption><b>{e.name}</b>{e.pose}{e.weaponId ? ` · ${WEAPONS[e.weaponId].name}` : e.weapon ? ` · ${e.weapon}` : ''}{e.dismounted ? ' · dismounted' : ''}{e.dragon ? ' · dragon form' : ''}{e.rules && <small>{e.rules}</small>}</figcaption>
             </figure>
           );
         })}
