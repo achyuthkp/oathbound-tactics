@@ -1,5 +1,5 @@
 import type { HairStyle, Look } from '../game/data/characters';
-import type { TerrainId, WeaponType } from '../game/types';
+import type { WeaponType } from '../game/types';
 import { Canvas, INK, Px, mix, shade, tint, type PxPath } from './pixel';
 
 /* ---------- Weapon icons ---------- */
@@ -265,80 +265,4 @@ export function Portrait({ look, size = 120, className, mood = 'neutral', talkin
 
 /* ---------- Terrain art ---------- */
 
-function grassTufts(x: number, y: number) {
-  const h = (x * 73 + y * 151) % 7;
-  if (h > 2) return null;
-  const ox = 8 + ((x * 37 + y * 11) % 26);
-  const oy = 10 + ((x * 19 + y * 53) % 24);
-  return <path d={`M${ox} ${oy + 6} l2 -6 l2 6 M${ox + 6} ${oy + 7} l1.5 -5 l1.5 5`} stroke="rgba(30,70,25,.5)" strokeWidth="1.4" fill="none" />;
-}
-
-export function TileArt({ t, x, y }: { t: TerrainId; x: number; y: number }) {
-  switch (t) {
-    case 'forest':
-      return (
-        <svg viewBox="0 0 48 48">
-          <path d="M9 31 L17 11 L25 31 Z" fill="#2c5e31" /><path d="M11 25 L17 14 L23 25 Z" fill="#3a7a3c" />
-          <rect x="16" y="31" width="2.4" height="5" fill="#4a3320" />
-          <path d="M23 39 L32 17 L41 39 Z" fill="#275429" /><path d="M25.5 32 L32 20 L38.5 32 Z" fill="#357236" />
-          <rect x="30.8" y="39" width="2.4" height="5" fill="#4a3320" />
-        </svg>
-      );
-    case 'mountain':
-      return (
-        <svg viewBox="0 0 48 48">
-          <path d="M2 42 L18 12 L30 30 L36 20 L46 42 Z" fill="#7a6a55" />
-          <path d="M18 12 L23.5 22 L19.5 20 L16 23 L13.5 20.5 Z" fill="#efe9dc" />
-          <path d="M36 20 L39.5 27 L36.5 25.5 L33.5 26.5 Z" fill="#efe9dc" />
-          <path d="M18 12 L30 30 L26 42 L18 42 Z" fill="rgba(0,0,0,.14)" />
-        </svg>
-      );
-    case 'water':
-      return (
-        <svg viewBox="0 0 48 48" className="waves">
-          <path d="M4 16 q5 -4 10 0 t10 0" stroke="rgba(220,240,255,.45)" strokeWidth="1.8" fill="none" />
-          <path d="M22 32 q5 -4 10 0 t10 0" stroke="rgba(220,240,255,.35)" strokeWidth="1.8" fill="none" />
-        </svg>
-      );
-    case 'wall':
-      return (
-        <svg viewBox="0 0 48 48">
-          {[0, 1, 2, 3].map(r => (
-            <g key={r}>
-              <line x1="0" y1={12 * r + 12} x2="48" y2={12 * r + 12} stroke="rgba(0,0,0,.35)" strokeWidth="1.5" />
-              {[0, 1, 2].map(c => <line key={c} x1={(r % 2 ? 8 : 0) + c * 16 + 8} y1={12 * r} x2={(r % 2 ? 8 : 0) + c * 16 + 8} y2={12 * r + 12} stroke="rgba(0,0,0,.3)" strokeWidth="1.5" />)}
-            </g>
-          ))}
-        </svg>
-      );
-    case 'fort':
-      return (
-        <svg viewBox="0 0 48 48">
-          <rect x="11" y="16" width="26" height="24" fill="#a8977a" stroke="#5e5040" strokeWidth="1.5" />
-          <path d="M11 16 v-5 h5 v5 M21.5 16 v-5 h5 v5 M32 16 v-5 h5 v5" fill="#a8977a" stroke="#5e5040" strokeWidth="1.5" />
-          <path d="M20 40 v-9 q4 -5 8 0 v9 Z" fill="#3b2f25" />
-          <path d="M24 11 V3 l7 3 l-7 3" fill="#2c4f9c" stroke="#2c4f9c" strokeWidth="1" />
-        </svg>
-      );
-    case 'throne':
-      return (
-        <svg viewBox="0 0 48 48">
-          <rect x="14" y="6" width="20" height="22" rx="3" fill="#b8922f" stroke="#6b5216" strokeWidth="1.5" />
-          <rect x="18" y="10" width="12" height="15" rx="2" fill="#7a2232" />
-          <rect x="11" y="26" width="26" height="8" rx="2" fill="#c9a23c" stroke="#6b5216" strokeWidth="1.5" />
-          <rect x="13" y="34" width="4" height="9" fill="#8a6a1e" /><rect x="31" y="34" width="4" height="9" fill="#8a6a1e" />
-        </svg>
-      );
-    case 'bridge':
-      return (
-        <svg viewBox="0 0 48 48">
-          {[0, 1, 2, 3, 4, 5].map(i => <line key={i} x1={4 + i * 8} y1="2" x2={4 + i * 8} y2="46" stroke="rgba(60,35,15,.45)" strokeWidth="1.4" />)}
-          <line x1="0" y1="3" x2="48" y2="3" stroke="#5a3a1e" strokeWidth="3" /><line x1="0" y1="45" x2="48" y2="45" stroke="#5a3a1e" strokeWidth="3" />
-        </svg>
-      );
-    case 'road':
-      return <svg viewBox="0 0 48 48"><circle cx={10 + (x * 7) % 25} cy={12 + (y * 11) % 22} r="1.4" fill="rgba(90,70,40,.5)" /><circle cx={30 - (y * 5) % 18} cy={30 + (x * 3) % 12} r="1.1" fill="rgba(90,70,40,.45)" /></svg>;
-    default:
-      return <svg viewBox="0 0 48 48">{grassTufts(x, y)}</svg>;
-  }
-}
+export { TileArt } from './tiles';

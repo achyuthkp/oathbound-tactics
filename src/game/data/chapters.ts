@@ -5,8 +5,9 @@ const e = (classId: string, level: number, weapons: string[], x: number, y: numb
 
 /*
  * Map legend
- *   .  plains     r  road       F  forest (+1 def, +20 avo)
- *   M  mountain   W  river      #  wall
+ *   .  plains     r  road       F  forest (+1 def, +20 avo, slow)
+ *   h  hills (+2 def, +30 avo, very slow)      D  desert (very slow, no bonus)
+ *   M  mountain (fliers only)   W  water (fliers only)   #  wall
  *   H  fort (+2 def, +20 avo, heals 20%/turn)
  *   B  bridge     T  throne (+3 def, +30 avo, heals)
  * Each map is 14 x 10. Player starts are listed in deployment order (Lord first).
@@ -24,8 +25,8 @@ export const CHAPTERS: Chapter[] = [
       '..r..FF...rr..',
       '..r..FF..H.r..',
       '.rr........rr.',
-      '.r...MM...F.r.',
-      'rr..MMM..FF.rr',
+      '.r...hh...F.r.',
+      'rr..hhh..FF.rr',
       'r.......F....r',
     ],
     objective: { type: 'rout' },
@@ -78,8 +79,8 @@ export const CHAPTERS: Chapter[] = [
       '..F...WW......',
       '......BB....H.',
       '.FF...WW...FF.',
-      '......WW..M...',
-      '..M...WW......',
+      '......WW..h...',
+      '..h...WW......',
     ],
     objective: { type: 'boss' },
     objectiveText: 'Defeat Captain Varn',
@@ -180,9 +181,9 @@ export const CHAPTERS: Chapter[] = [
       '#...#...#...#.',
       '##.###.###.##.',
       '..............',
-      '.FF....MM...F.',
+      '.FF....hh...F.',
       '......FF......',
-      '.M..r.....r...',
+      '.h..r.....r...',
       '....rrrrrrr..F',
       '..FF...r......',
     ],
@@ -236,7 +237,7 @@ export const CHAPTERS: Chapter[] = [
       '....W.....W...',
       '..F.WW...WW.F.',
       '....W.....W...',
-      '..M...rrr...M.',
+      '..h...rrr...h.',
       '......r.r.....',
     ],
     objective: { type: 'boss' },

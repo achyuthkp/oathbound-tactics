@@ -14,6 +14,18 @@ import type { BattleState, Campaign } from '../src/game/types';
 let errors = 0;
 const fail = (m: string) => { errors++; console.log('ERROR', m); };
 
+// movement rule: armour moves least, fliers most, everyone else strictly in between
+{
+  const all = Object.values(CLASSES);
+  const slowest = Math.max(...all.filter(c => c.moveType === 'armor').map(c => c.mov));
+  const fastest = Math.min(...all.filter(c => c.moveType === 'flying').map(c => c.mov));
+  for (const c of all) {
+    if (c.moveType !== 'armor' && c.moveType !== 'flying' && !(c.mov > slowest && c.mov < fastest)) {
+      fail(`${c.name} moves ${c.mov}; must be between armour (${slowest}) and fliers (${fastest})`);
+    }
+  }
+}
+
 // ---- data validation
 CHAPTERS.forEach((ch, ci) => {
   if (ch.map.length !== 10) fail(`ch${ci} rows ${ch.map.length}`);

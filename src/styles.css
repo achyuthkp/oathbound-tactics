@@ -135,9 +135,10 @@ button.toggle.on { background: #5a2a14; border-color: #e07a3a; color: #ffd7b5; }
 .t-plains { background: #79a352; } .t-plains.odd { background: #74a04e; }
 .t-road { background: #bfa271; } .t-road.odd { background: #b99c6b; }
 .t-forest { background: #5f8e43; }
-.t-mountain { background: #8c9a5c; }
+.t-mountain { background: #5d6e45; }
+.t-hills { background: #79a352; } /* grass shows around the slopes */
+.t-desert { background: #e4cb8a; }
 .t-water { background: linear-gradient(180deg, #2f78b0, #2a6aa0); }
-.t-water .waves { animation: drift 3s ease-in-out infinite alternate; }
 @keyframes drift { to { transform: translateX(4px); } }
 .t-wall { background: #4b4651; }
 .t-fort { background: #8fa25a; }
@@ -453,6 +454,11 @@ button.small { padding: 5px 9px; font-size: 13px; }
 .cs-forest .cs-ground { background: linear-gradient(#5a8a3e, #3f6a2c); }
 .cs-mountain .cs-scenery { background: linear-gradient(135deg, transparent 49%, #7a6a55 50%) 0 100% / 50% 100% no-repeat, linear-gradient(225deg, transparent 49%, #6a5a48 50%) 100% 100% / 50% 100% no-repeat; }
 .cs-mountain .cs-ground, .cs-road .cs-ground { background: linear-gradient(#a89270, #8a7656); }
+.cs-hills .cs-scenery { background: radial-gradient(60% 90% at 30% 100%, #b3904c 60%, transparent 61%), radial-gradient(50% 70% at 75% 100%, #806030 60%, transparent 61%); }
+.cs-hills .cs-ground { background: linear-gradient(#d0b36c, #96753a); }
+.cs-desert { background: linear-gradient(#e9b56a, #f0d9a0); }
+.cs-desert .cs-scenery { background: radial-gradient(70% 60% at 25% 100%, #d9bc78 60%, transparent 61%), radial-gradient(60% 45% at 80% 100%, #cfae68 60%, transparent 61%); }
+.cs-desert .cs-ground { background: linear-gradient(#e4cb8a, #c9ac68); }
 .cs-fort .cs-scenery, .cs-throne .cs-scenery, .cs-wall .cs-scenery { background: repeating-linear-gradient(90deg, #6e6a72 0 60px, #625e68 60px 62px); height: 70%; }
 .cs-fort .cs-ground { background: linear-gradient(#8a7b62, #6a5d48); }
 .cs-throne .cs-ground { background: linear-gradient(#7a2232, #4a1420); }
@@ -649,3 +655,6 @@ kbd { display: inline-block; padding: 1px 6px; border-radius: 3px; border: 1px s
 .sb-grid figcaption b { display: block; color: inherit; font: 700 13px var(--display); }
 .sb-flip { transform: scaleX(-1); }
 @media (max-width: 700px) { .sb-filters { position: static; } }
+.sb-tile { position: relative; margin: 0 auto; }
+.sb-tile svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.sb-grid figcaption small { display: block; max-width: 170px; font-size: 11px; }

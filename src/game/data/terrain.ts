@@ -19,12 +19,26 @@ function t(
   return { id, name, def, avo, heal, cost: { foot, armor, horse, flying } };
 }
 
+/*
+ * Columns: defence, avoid, heal %, then movement cost on foot / in armour / on horseback / flying.
+ * INF = cannot enter. Fliers pay 1 everywhere and get no terrain bonus (see terrainBonus).
+ *
+ *   plains    no bonus, no penalty
+ *   forest    some cover, slows everyone on the ground
+ *   hills     the best cover in the open, and the slowest ground to cross
+ *   desert    as slow as hills with no cover at all
+ *   mountain  fliers only
+ *   water     fliers only for now. A seafaring class (pirates) would be a new MoveType, say
+ *             'sea': add it to MoveType, give t() one more column, and set water to 1-2 there.
+ */
 export const TERRAIN: Record<TerrainId, TerrainDef> = {
   plains: t('plains', 'Plains', 0, 0, 0, 1, 1, 1, 1),
   road: t('road', 'Road', 0, 0, 0, 1, 1, 1, 1),
   forest: t('forest', 'Forest', 1, 20, 0, 2, 2, 3, 1),
-  mountain: t('mountain', 'Mountain', 2, 30, 0, 3, INF, INF, 1),
-  water: t('water', 'River', 0, 10, 0, INF, INF, INF, 1),
+  hills: t('hills', 'Hills', 2, 30, 0, 3, 4, 4, 1),
+  desert: t('desert', 'Desert', 0, 0, 0, 3, 4, 4, 1),
+  mountain: t('mountain', 'Mountain', 0, 0, 0, INF, INF, INF, 1),
+  water: t('water', 'Water', 0, 0, 0, INF, INF, INF, 1),
   wall: t('wall', 'Wall', 0, 0, 0, INF, INF, INF, INF),
   fort: t('fort', 'Fort', 2, 20, 20, 2, 2, 2, 1),
   bridge: t('bridge', 'Bridge', 0, 0, 0, 1, 1, 1, 1),
@@ -32,6 +46,6 @@ export const TERRAIN: Record<TerrainId, TerrainDef> = {
 };
 
 export const CHAR_TERRAIN: Record<string, TerrainId> = {
-  '.': 'plains', r: 'road', F: 'forest', M: 'mountain', W: 'water',
+  '.': 'plains', r: 'road', F: 'forest', h: 'hills', D: 'desert', M: 'mountain', W: 'water',
   '#': 'wall', H: 'fort', B: 'bridge', T: 'throne',
 };

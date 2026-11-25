@@ -81,9 +81,28 @@ double might to flying units. Staves heal adjacent allies.
 - Attack speed = Spd − max(0, weapon weight − Str). 4+ faster than the foe = strike twice
 - Hit rolls average two random numbers, so high odds are a bit more reliable than they look
 
-**Terrain.** Forest +1 def/+20 avo, mountain +2/+30, fort +2/+20 and heals 20% per turn,
-throne +3/+30 and heals. Cavalry is slowed by forests and can't climb mountains; armored
-knights move 4; fliers ignore terrain costs but receive no terrain bonus.
+**Terrain.** Movement cost is per tile; "blocked" means the unit type cannot enter.
+
+| Terrain | Def | Avoid | Foot | Armour | Horse | Flying |
+| --- | --- | --- | --- | --- | --- | --- |
+| Plains, road, bridge | 0 | 0 | 1 | 1 | 1 | 1 |
+| Forest | +1 | +20 | 2 | 2 | 3 | 1 |
+| Hills | +2 | +30 | 3 | 4 | 4 | 1 |
+| Desert | 0 | 0 | 3 | 4 | 4 | 1 |
+| Mountain | – | – | blocked | blocked | blocked | 1 |
+| Water | – | – | blocked | blocked | blocked | 1 |
+| Fort (heals 20% per turn) | +2 | +20 | 2 | 2 | 2 | 1 |
+| Throne (heals 20% per turn) | +3 | +30 | 1 | 1 | 1 | 1 |
+
+Fliers pay 1 everywhere but receive no terrain bonus.
+
+**Movement range.** Armoured classes move the least per turn (Knight 4), fliers the most (Sky
+Knight 8), and everyone else sits in between (foot classes 5, Cavalier 7). Water is fliers
+only for now; `src/game/data/terrain.ts` notes how a seafaring move type would slot in. No
+chapter uses desert yet.
+
+Tiles are 16×16 pixel art drawn in `src/components/tiles.tsx`, four variants per terrain; water
+draws a sandy bank with foam on any side that touches land and animates its waves.
 
 **Enemy behaviour.** Aggressive units hunt the best target in reach; guards wait until you
 come into range (or attack them); holders such as bosses never leave their tile.
@@ -147,7 +166,7 @@ plays in the level-up window. Dodging is a five-frame leap back with speed lines
 
 Open the game with **`#sprites`** on the end of the URL (or press **Sprites** on the title screen)
 for the sprite browser: every sprite and portrait the game can draw, filterable by type, group,
-character, class, pose or expression, weapon and mount, with search, a size slider, a facing
+character, class, pose or expression, weapon and mount (terrain tiles are under type "Tiles"), with search, a size slider, a facing
 toggle and a replay button.
 
 Mounts are drawn in detail: shaded body, bridle, reins, blaze, saddle and blanket in the rider's
@@ -193,7 +212,8 @@ src/
     StoryScene.tsx      visual-novel dialogue
     pixel.tsx           pixel rasterizer (grid, per-layer outline, SVG paths)
     figure.tsx          pixel character sprites (frame animation in src/figure.css)
-    art.tsx             pixel portrait busts (expressions, blink, lip-sync), tiles, icons
+    art.tsx             pixel portrait busts (expressions, blink, lip-sync), icons
+    tiles.tsx           pixel terrain tiles
     WorldMap.tsx        illustrated map of Aldmere and the travel animation
     SaveMenu.tsx        save / load slots
     Profile.tsx         profile viewer with live model preview, Characters codex
@@ -210,7 +230,7 @@ art/                    exported SVG illustrations (see art/README.md)
 ### Adding a chapter
 
 Append an entry to `CHAPTERS` in `src/game/data/chapters.ts`. Maps are 14×10 strings using
-the legend at the top of that file (`.` plains, `F` forest, `M` mountain, `W` river, `#` wall,
+the legend at the top of that file (`.` plains, `F` forest, `h` hills, `D` desert, `M` mountain, `W` water, `#` wall,
 `H` fort, `B` bridge, `T` throne, `r` road). List player starts with the Lord first, then
 enemies, optional reinforcements by turn, recruits, and the pre/post dialogue. Run the sim
 to catch units placed on impassable tiles.

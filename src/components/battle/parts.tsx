@@ -11,12 +11,18 @@ import { Figure, standPose } from '../figure';
 
 export const TILE = 48;
 
+/** Which sides of a water tile touch land: 1 north, 2 east, 4 south, 8 west. The map edge counts as more water. */
+function shoreMask(map: TerrainId[][], x: number, y: number): number {
+  const land = (nx: number, ny: number) => { const t = map[ny]?.[nx]; return t !== undefined && t !== 'water' && t !== 'bridge'; };
+  return (land(x, y - 1) ? 1 : 0) | (land(x + 1, y) ? 2 : 0) | (land(x, y + 1) ? 4 : 0) | (land(x - 1, y) ? 8 : 0);
+}
+
 export const TerrainLayer = memo(function TerrainLayer({ map }: { map: TerrainId[][] }) {
   return (
     <div className="terrain" style={{ gridTemplateColumns: `repeat(${map[0].length}, ${TILE}px)` }}>
       {map.flatMap((row, y) => row.map((t, x) => (
         <div key={`${x},${y}`} className={`tile t-${t} ${(x + y) % 2 ? 'odd' : ''}`}>
-          <TileArt t={t} x={x} y={y} />
+          <TileArt t={t} x={x} y={y} mask={t === 'water' ? shoreMask(map, x, y) : 0} />
         </div>
       )))}
     </div>

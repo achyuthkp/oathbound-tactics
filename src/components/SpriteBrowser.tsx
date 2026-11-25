@@ -2,16 +2,17 @@ import { useMemo, useState } from 'react';
 import { CHARACTERS, buildFor, lookById, lookFor } from '../game/data/characters';
 import { CLASSES } from '../game/data/classes';
 import { ALLY_IDS, ARCHETYPES, NPC_IDS, PROFILES } from '../game/data/profiles';
-import type { WeaponType } from '../game/types';
-import { Portrait, type Mood } from './art';
+import { TERRAIN } from '../game/data/terrain';
+import type { TerrainId, WeaponType } from '../game/types';
+import { Portrait, TileArt, type Mood } from './art';
 import { Figure, SCENARIO_POSES, attackPose, type Pose } from './figure';
 
 /** Sprite browser: open the game with #sprites to see every sprite the game can draw, with filters. */
 
-type Group = 'Companions' | 'Villains' | 'Enemy types';
+type Group = 'Companions' | 'Villains' | 'Enemy types' | 'Terrain';
 interface Entry {
   key: string;
-  kind: 'Sprites' | 'Portraits';
+  kind: 'Sprites' | 'Portraits' | 'Tiles';
   id: string;
   name: string;
   group: Group;
@@ -21,6 +22,9 @@ interface Entry {
   weapon?: WeaponType;
   mount: 'On foot' | 'Horse' | 'Pegasus';
   dismounted?: boolean;
+  /** Tiles: position (picks the variant) and which sides touch land (water only). */
+  tile?: { x: number; y: number; mask: number };
+  rules?: string;
 }
 
 const MOODS: (Mood | 'talking')[] = ['neutral', 'happy', 'angry', 'sad', 'surprised', 'talking'];
@@ -51,16 +55,27 @@ function allEntries(): Entry[] {
     }
     if (CHARACTERS[id]) for (const mood of MOODS) out.push({ ...base, kind: 'Portraits', pose: mood, mount: 'On foot', key: `p-${id}-${mood}` });
   }
+  // every terrain in its four variants; water also with banks on one side, two sides and all round
+  for (const t of Object.keys(TERRAIN) as TerrainId[]) {
+    const d = TERRAIN[t];
+    const cost = (n: number) => (Number.isFinite(n) ? String(n) : 'blocked');
+    const rules = `def +${d.def}, avo +${d.avo}, move: foot ${cost(d.cost.foot)}, horse ${cost(d.cost.horse)}, flying ${cost(d.cost.flying)}`;
+    const tiles = [[0, 0, 0], [1, 0, 0], [0, 1, 0], [3, 0, 0], ...(t === 'water' ? [[0, 0, 1], [1, 0, 10], [0, 1, 15]] : [])];
+    tiles.forEach(([x, y, mask], i) => out.push({
+      kind: 'Tiles', id: t, name: d.name, group: 'Terrain', classId: '', mount: 'On foot',
+      pose: mask ? `shore ${mask}` : `variant ${i + 1}`, tile: { x, y, mask }, key: `t-${t}-${i}`, rules,
+    }));
+  }
   return out;
 }
 
 const ENTRIES = allEntries();
 const uniq = (xs: string[]) => [...new Set(xs)];
 const OPTIONS = {
-  kind: ['Sprites', 'Portraits'],
-  group: ['Companions', 'Villains', 'Enemy types'],
+  kind: ['Sprites', 'Portraits', 'Tiles'],
+  group: ['Companions', 'Villains', 'Enemy types', 'Terrain'],
   name: uniq(ENTRIES.map(e => e.name)),
-  classId: uniq(ENTRIES.map(e => e.classId)),
+  classId: uniq(ENTRIES.map(e => e.classId)).filter(Boolean),
   pose: uniq(ENTRIES.map(e => e.pose)),
   weapon: uniq(ENTRIES.flatMap(e => (e.weapon ? [e.weapon] : []))),
   mount: ['On foot', 'Horse', 'Pegasus'],
@@ -81,7 +96,7 @@ export function SpriteBrowser() {
     const q = query.trim().toLowerCase();
     return ENTRIES.filter(e =>
       (Object.keys(filters) as FilterKey[]).every(k => !filters[k] || e[k] === filters[k])
-      && (!q || `${e.name} ${CLASSES[e.classId].name} ${e.pose} ${e.weapon ?? ''} ${e.group} ${e.mount}`.toLowerCase().includes(q)));
+      && (!q || `${e.name} ${CLASSES[e.classId]?.name ?? 'terrain tile'} ${e.pose} ${e.weapon ?? ''} ${e.group} ${e.mount}`.toLowerCase().includes(q)));
   }, [filters, query]);
 
   return (
@@ -109,10 +124,12 @@ export function SpriteBrowser() {
           const u = { id: e.id, classId: e.classId, lookId: CHARACTERS[e.id] ? e.id : undefined };
           return (
             <figure key={`${e.key}-${replay}`}>
-              {e.kind === 'Portraits'
+              {e.tile
+                ? <div className="sb-tile" style={{ width: size * 0.75, height: size * 0.75 }} title={e.rules}><TileArt t={e.id as TerrainId} x={e.tile.x} y={e.tile.y} mask={e.tile.mask} /></div>
+                : e.kind === 'Portraits'
                 ? <Portrait look={lookById(e.id)} mood={e.pose === 'talking' ? 'neutral' : e.pose as Mood} talking={e.pose === 'talking'} size={size * 0.8} className={left ? 'sb-flip' : ''} />
                 : <Figure look={lookFor(u)} build={buildFor(u, { dismount: e.dismounted })} weapon={e.weapon} pose={e.pose as Pose} facing={left ? 'left' : 'right'} size={size} />}
-              <figcaption><b>{e.name}</b>{e.pose}{e.weapon ? ` · ${e.weapon}` : ''}{e.dismounted ? ' · dismounted' : ''}</figcaption>
+              <figcaption><b>{e.name}</b>{e.pose}{e.weapon ? ` · ${e.weapon}` : ''}{e.dismounted ? ' · dismounted' : ''}{e.rules && <small>{e.rules}</small>}</figcaption>
             </figure>
           );
         })}

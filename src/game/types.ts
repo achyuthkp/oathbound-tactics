@@ -2,7 +2,7 @@ export type WeaponType = 'sword' | 'lance' | 'axe' | 'bow' | 'staff';
 export type Team = 'player' | 'enemy';
 export type MoveType = 'foot' | 'armor' | 'horse' | 'flying';
 export type TerrainId =
-  | 'plains' | 'road' | 'forest' | 'mountain' | 'water' | 'wall' | 'fort' | 'bridge' | 'throne';
+  | 'plains' | 'road' | 'forest' | 'hills' | 'mountain' | 'water' | 'desert' | 'wall' | 'fort' | 'bridge' | 'throne';
 export type AIMode = 'aggressive' | 'guard' | 'hold';
 export type StatKey = 'hp' | 'str' | 'skl' | 'spd' | 'lck' | 'def';
 export type Stats = Record<StatKey, number>;

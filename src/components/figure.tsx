@@ -261,7 +261,11 @@ function drawWeapon(l: Canvas, type: WeaponType, h: V, d: V, accent: string, glo
   }
 }
 
-const BOW_ARC: V[] = [[-2, -5], [-1, -4], [-1, -3], [0, -2], [0, -1], [0, 0], [0, 1], [0, 2], [-1, 3], [-1, 4], [-2, 5]];
+/** A longbow, 17 px tip to tip (about three quarters of the archer's height), belly forward at the grip. */
+const BOW_ARC: V[] = [
+  [-3, -8], [-2, -7], [-2, -6], [-1, -5], [-1, -4], [0, -3], [0, -2],
+  [0, 2], [0, 3], [-1, 4], [-1, 5], [-2, 6], [-2, 7], [-3, 8],
+];
 
 /* ---------- mount ---------- */
 
@@ -410,7 +414,7 @@ const REST: Record<WeaponType | 'none', { hand: V; dir: V; back: V }> = {
   sword: { hand: [3, 3], dir: [1, -1], back: [-1, 4] },
   lance: { hand: [4, 2], dir: [0, -1], back: [-1, 4] },
   axe: { hand: [3, 3], dir: [1, -1], back: [-1, 4] },
-  bow: { hand: [6, 1], dir: [0, -1], back: [7, 2] },
+  bow: { hand: [7, 1], dir: [0, -1], back: [8, 2] },
   staff: { hand: [5, 3], dir: [0, -1], back: [-1, 4] },
   none: { hand: [1, 5], dir: [0, 0], back: [-1, 4] },
 };
@@ -572,14 +576,15 @@ function drawFrame(look: Look, build: Build, weapon: WeaponType | undefined, f: 
       const [x, y] = hand;
       const string = '#efe6cc';
       if (f.fx === 'nock' || f.fx === 'draw') {
-        l.line(x - 2, y - 5, backHand[0], backHand[1], string);
-        l.line(x - 2, y + 5, backHand[0], backHand[1], string);
+        l.line(x - 3, y - 8, backHand[0], backHand[1], string);
+        l.line(x - 3, y + 8, backHand[0], backHand[1], string);
         l.rect(backHand[0], y, x + 3 - backHand[0], 1, '#d8c8a0');
         l.set(x + 3, y, BLADE);
       } else {
-        l.rect(x - 2, y - 4, 1, 9, string);
+        l.rect(x - 3, y - 7, 1, 15, string);
       }
       for (const [dx, dy] of BOW_ARC) l.set(x + dx, y + dy, WOOD);
+      l.rect(x, y - 1, 1, 3, '#4a3320'); // leather grip
     });
   } else if (weapon) {
     c.layer(l => drawWeapon(l, weapon, hand, d, accent, f.fx === 'glow'));
@@ -691,7 +696,7 @@ function framesFor(pose: Pose, mounted: boolean, flying: boolean): { frames: Fr[
       ];
       break;
     case 'shoot':
-      frames = [{ at: 0, fx: 'nock', back: [8, 1] }, { at: 0.12, fx: 'draw', back: [3, 1] }, { at: 0.39, back: [3, 1] }];
+      frames = [{ at: 0, fx: 'nock', back: [9, 1] }, { at: 0.12, fx: 'draw', back: [3, 1] }, { at: 0.39, back: [3, 1] }];
       break;
     case 'cast':
       frames = [{ at: 0, hand: [5, -1] }, { at: 0.3, hand: [5, -1], fx: 'glow' }, { at: 0.7 }];
