@@ -105,7 +105,7 @@ export function StoryScene({ lines, heading, subheading, backdrop = 'dusk', onDo
       </div>
       <div className="story-controls" onClick={e => e.stopPropagation()}>
         <span>{i + 1} / {lines.length}</span>
-        <button className="ghost" onClick={finish}>Skip scene</button>
+        <button className="ghost" data-pad="start" onClick={finish}>Skip scene</button>
       </div>
     </div>
   );

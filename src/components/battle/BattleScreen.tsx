@@ -381,11 +381,57 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
 
   const cancelRef = useRef(cancel);
   cancelRef.current = cancel;
+
+  /**
+   * Keyboard / controller cursor. Arrows move the tile cursor (or step between targets while
+   * aiming), Enter acts on the tile under it exactly like a click, [ and ] jump between units
+   * that can still act. Returns true when the key was used.
+   */
+  const keyNavRef = useRef<(k: string) => boolean>(() => false);
+  keyNavRef.current = (k: string): boolean => {
+    const s = stateRef.current;
+    if (busy || paused || profileUnit || endedRef.current || s.phase !== 'player' || mode.kind === 'menu') return false;
+    const dir = ({ ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] } as Record<string, number[]>)[k];
+    const confirm = k === 'Enter' || k === ' ';
+    if (mode.kind === 'target') {
+      if (dir) {
+        const n = mode.targets.length;
+        const id = mode.targets[(mode.targets.indexOf(mode.targetId) + (dir[0] + dir[1] > 0 ? 1 : n - 1)) % n];
+        selectTarget(id);
+        return true;
+      }
+      if (confirm) { void confirmTarget(); return true; }
+      return false;
+    }
+    const ready = s.units.filter(u => u.team === 'player' && !u.done);
+    if (dir) {
+      const from = hover ?? (() => { const u = ready[0] ?? s.units[0]; return { x: u.x - dir[0], y: u.y - dir[1] }; })();
+      setHover({ x: Math.max(0, Math.min(s.width - 1, from.x + dir[0])), y: Math.max(0, Math.min(s.height - 1, from.y + dir[1])) });
+      return true;
+    }
+    if ((k === '[' || k === ']') && ready.length) {
+      const i = ready.findIndex(u => hover && u.x === hover.x && u.y === hover.y);
+      const u = ready[(i + (k === ']' ? 1 : ready.length - 1) + (i < 0 && k === '[' ? 1 : 0)) % ready.length];
+      setHover({ x: u.x, y: u.y });
+      return true;
+    }
+    if (confirm && hover) { void clickTile(hover); return true; }
+    return false;
+  };
+  // while aiming, the cursor sits on the current target
+  const aimAt = mode.kind === 'target' ? mode.targetId : null;
+  useEffect(() => {
+    const t = aimAt && stateRef.current.units.find(u => u.id === aimAt);
+    if (t) setHover({ x: t.x, y: t.y });
+  }, [aimAt]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' || e.key === 'Backspace') cancelRef.current();
       if ((e.key === 'd' || e.key === 'D') && !e.ctrlKey && !e.metaKey) setDetails(v => !v);
-      if (e.key === ' ' || e.key === 'Enter') { if (continueRef.current) { e.preventDefault(); continueRef.current(); } }
+      if (e.key === ' ' || e.key === 'Enter') { if (continueRef.current) { e.preventDefault(); continueRef.current(); return; } }
+      // a focused button or field keeps its own keys
+      if (e.ctrlKey || e.metaKey || (e.target as HTMLElement | null)?.closest?.('button, a, input, select')) return;
+      if (keyNavRef.current(e.key)) e.preventDefault();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -399,9 +445,13 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
     setMode({ kind: 'target', unitId: unit.id, from, action: 'attack', targets: targets.map(x => x.id), targetId: t.id, weaponIdx: bestWeaponFor(s, unit, t) });
   }
 
-  async function onMapClick(e: React.MouseEvent) {
+  function onMapClick(e: React.MouseEvent) {
     const p = tileFromEvent(e);
-    if (!p || busy || endedRef.current) return;
+    if (p) void clickTile(p);
+  }
+
+  async function clickTile(p: Pos) {
+    if (busy || endedRef.current) return;
     const s = stateRef.current;
     if (s.phase !== 'player') return;
     const u = unitAt(s, p.x, p.y);
@@ -578,7 +628,8 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
   ) : (
     <div className="hud-hint">
       {hoverTerrain ? <TerrainInfo t={hoverTerrain} /> : null}
-      <span>Click a unit, then a blue tile to move. Click a red enemy to attack it. Right-click or Esc undoes. Press D for details.</span>
+      <span className="kbm-only">Click a unit, then a blue tile to move. Click a red enemy to attack it. Right-click or Esc undoes. Press D for details.</span>
+      <span className="pad-only">Move the cursor with the D-pad or left stick. <b className="pad-a" /> selects and confirms, <b className="pad-b" /> undoes, <b className="pad-lb" /> <b className="pad-rb" /> jump between units that can still act.</span>
     </div>
   );
 
@@ -683,13 +734,13 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
         </section>
         <section className="hud-context">{hudContext}</section>
         <section className="hud-actions">
-          <button className="primary" disabled={busy || state.phase !== 'player'} onClick={endTurn}>
+          <button className="primary" data-pad="select" disabled={busy || state.phase !== 'player'} onClick={endTurn}>
             End turn{playersLeft ? ` (${playersLeft})` : ''}
           </button>
           <div className="hud-toggles">
-            <button className={danger ? 'toggle on' : 'toggle'} onClick={() => setDanger(d => !d)} aria-pressed={danger}>Danger zone</button>
-            <button className={details ? 'toggle on' : 'toggle'} onClick={() => setDetails(d => !d)} aria-pressed={details}>Details</button>
-            <button className="ghost" onClick={() => setPaused(true)}>Menu</button>
+            <button className={danger ? 'toggle on' : 'toggle'} data-pad="y" onClick={() => setDanger(d => !d)} aria-pressed={danger}>Danger zone</button>
+            <button className={details ? 'toggle on' : 'toggle'} data-pad="x" onClick={() => setDetails(d => !d)} aria-pressed={details}>Details</button>
+            <button className="ghost" data-pad="start" onClick={() => setPaused(true)}>Menu</button>
           </div>
         </section>
       </footer>

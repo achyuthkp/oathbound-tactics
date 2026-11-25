@@ -48,6 +48,7 @@ export function TitleScreen({ canContinue, onNew, onContinue, onLoad }: { canCon
         <div className="modal-back" onClick={() => setPanel('none')}>
           <div className="help" onClick={e => e.stopPropagation()}>
             <h2>How to play</h2>
+            <p className="hint">Controllers work too (Xbox, PS5, Steam Deck): the D-pad or left stick moves the cursor, Kael at camp, and the highlight in menus. A / ✕ confirms, B / ○ goes back, LB RB / L1 R1 jump between units, and buttons on screen show which pad button presses them.</p>
             <div className="help-cols">
               <div>
                 <h3>Your turn</h3>

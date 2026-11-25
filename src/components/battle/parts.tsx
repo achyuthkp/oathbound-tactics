@@ -229,7 +229,7 @@ export function HudForecast({ att, def, fc, weaponChoices, onCycle, onConfirm, o
     <div className="hud-forecast">
       {side(att, fc.att, fc.def)}
       <div className="hf-vs">
-        {weaponChoices > 1 && <button className="small" onClick={() => onCycle(1)} title="Switch weapon">Switch weapon</button>}
+        {weaponChoices > 1 && <button className="small" data-pad="rb" onClick={() => onCycle(1)} title="Switch weapon">Switch weapon</button>}
       </div>
       {side(def, fc.def, fc.att)}
       <div className="hf-actions">

@@ -199,7 +199,7 @@ export function CampScreen({ campaign: c, onChange, onMarch, onOpenSaveMenu, onT
             <span>{apLine}</span>
           </div>
         </div>
-        <nav className="camp-nav">
+        <nav className="camp-nav" data-pad="y" data-pad-group="">
           <button onClick={() => setPanel('army')}>Army</button>
           <button onClick={() => setPanel('armory')}>Armory</button>
           <button onClick={() => setPanel('bonds')}>Bonds{readyCount ? ` (${readyCount})` : ''}</button>

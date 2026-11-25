@@ -52,6 +52,29 @@ stats and weapons for both units, terrain, the weapon triangle, and the battle l
 | Dialogue | Click, Space or Enter to advance. Esc skips the scene |
 | Rest area | WASD / arrow keys or click the ground to walk Kael. E (or click) to use what's nearby or talk |
 
+### Controller
+
+Xbox, PS5 (DualSense) and Steam Deck / Steam Input controllers work through the browser's
+Gamepad API; plug one in and press any button. Buttons on screen show which pad button presses
+them, with Xbox letters or PlayStation shapes to match the controller.
+
+| Action | Xbox / Steam | PS5 |
+| --- | --- | --- |
+| Move the battle cursor, walk Kael at camp, move the highlight in menus | D-pad or left stick | D-pad or left stick |
+| Select / confirm / advance dialogue / talk | A | ✕ |
+| Undo / back / close a menu | B | ○ |
+| Jump between units that can still act; switch weapon while aiming | LB, RB | L1, R1 |
+| Details drawer (battle) | X | □ |
+| Danger zone (battle); top bar (camp) | Y | △ |
+| Pause menu (battle); skip scene (story) | Menu | Options |
+| End turn | View | Create |
+
+While aiming, the D-pad steps between targets. The arrow keys do everything the D-pad does, so
+the game is also fully playable from the keyboard. `src/gamepad.ts` holds the mapping: the pad
+drives the existing keyboard and button handlers rather than a separate code path, and any
+button can be given a pad shortcut by adding `data-pad="x"` (or `y`, `lb`, `rb`, `start`,
+`select`) to it.
+
 ## Saving
 
 Saves live inside the browser (localStorage); nothing is downloaded. There are five slots:
@@ -212,6 +235,7 @@ src/
     StoryScene.tsx      visual-novel dialogue
     pixel.tsx           pixel rasterizer (grid, per-layer outline, SVG paths)
     figure.tsx          pixel character sprites (frame animation in src/figure.css)
+  gamepad.ts            controller support (Gamepad API) and arrow-key menu navigation
     art.tsx             pixel portrait busts (expressions, blink, lip-sync), icons
     tiles.tsx           pixel terrain tiles
     WorldMap.tsx        illustrated map of Aldmere and the travel animation

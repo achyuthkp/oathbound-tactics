@@ -216,7 +216,7 @@ export function CampWorld({ roster, chapterIndex, disabled, onInteract }: Props)
       const k = e.key.toLowerCase();
       if (talkRef.current) {
         if (k === 'e' || k === 'enter' || k === ' ') { e.preventDefault(); advanceRef.current(); }
-        if (k === 'escape') setTalk(null);
+        if (k === 'escape' || k === 'backspace') setTalk(null);
         return;
       }
       if (MOVE.includes(k)) { keys.current.add(k); target.current = null; e.preventDefault(); }
