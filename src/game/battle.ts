@@ -12,6 +12,9 @@ import { CLASSES } from './data/classes';
 
 export const MAX_UNITS_PER_SIDE = 10;
 
+/** Attacking one guard wakes other guards this close to it. */
+const GUARD_WAKE_RADIUS = 4;
+
 export interface LevelUpEvent { unitId: string; name: string; level: number; gains: Partial<Stats>; }
 export interface BattleEvents {
   levelUps: LevelUpEvent[];
@@ -127,7 +130,14 @@ export function applyAttack(state: BattleState, attId: string, defId: string, we
   const last = strikes[strikes.length - 1];
   if (last) { att.hp = last.attHp; def.hp = last.defHp; }
   const events = noEvents();
-  if (def.team === 'enemy' && def.ai === 'guard') def.ai = 'aggressive';
+  // Attacking a guard, or dropping any enemy beside one, raises the alarm for the nearby post.
+  if (def.team === 'enemy' && (def.ai === 'guard' || def.hp <= 0)) {
+    for (const ally of s.units) {
+      if (ally.team === 'enemy' && ally.ai === 'guard' && ally.hp > 0 && manhattan(ally, def) <= GUARD_WAKE_RADIUS) {
+        ally.ai = 'aggressive';
+      }
+    }
+  }
   // every blow that lands wears the weapon that dealt it
   // ponytail: a weapon on its last use still finishes the round it started; break it mid-round if that ever matters
   const counter = counterWeapon(def, manhattan(att, def));

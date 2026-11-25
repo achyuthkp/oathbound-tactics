@@ -460,14 +460,33 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
   cancelRef.current = cancel;
 
   /**
-   * Keyboard / controller cursor. Arrows move the tile cursor (or step between targets while
-   * aiming), Enter acts on the tile under it exactly like a click, [ and ] jump between units
-   * that can still act. Returns true when the key was used.
+   * Keyboard / controller cursor and action hotkeys. Arrows move the tile cursor (or step between
+   * targets while aiming), Enter acts on the tile under it exactly like a click, [ and ] jump
+   * between units that can still act, T ends the turn, Z toggles the danger zone, and R cycles
+   * weapons while aiming. Returns true when the key was used.
    */
   const keyNavRef = useRef<(k: string) => boolean>(() => false);
   keyNavRef.current = (k: string): boolean => {
     const s = stateRef.current;
-    if (busy || paused || profileUnit || endedRef.current || s.phase !== 'player' || mode.kind === 'menu') return false;
+    // The save/load menu is rendered by App above this screen, so it is not in local state.
+    const sheet = !!document.querySelector('.sheet-back');
+    const modal = sheet || paused || !!profileUnit || !!stealFor || !!tradeFor || !!visit || !!scene || !!levelUp || confirmQuit;
+    if (modal) return false;
+    // Danger zone is a view toggle, not a turn action, so it works whenever the map is visible.
+    if (k === 'z' || k === 'Z') { setDanger(v => !v); return true; }
+    if (busy || endedRef.current || s.phase !== 'player' || mode.kind === 'menu') return false;
+    if (k === 't' || k === 'T') { void endTurn(); return true; }
+    if (k === 'r' || k === 'R') {
+      if (mode.kind === 'target' && mode.action === 'attack') {
+        const unit = s.units.find(u => u.id === mode.unitId);
+        const foe = s.units.find(u => u.id === mode.targetId);
+        if (unit && foe && attackWeapons(unit).filter(i => canAttackAt(unit, i, manhattan(unit, foe))).length > 1) {
+          cycleWeapon(1);
+          return true;
+        }
+      }
+      return false;
+    }
     const dir = ({ ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] } as Record<string, number[]>)[k];
     const confirm = k === 'Enter' || k === ' ';
     if (mode.kind === 'target') {
@@ -868,11 +887,11 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
         </section>
         <section className="hud-context">{hudContext}</section>
         <section className="hud-actions">
-          <button className="primary" data-pad="select" disabled={busy || state.phase !== 'player'} onClick={endTurn}>
+          <button className="primary" data-pad="select" disabled={busy || state.phase !== 'player'} onClick={endTurn} aria-keyshortcuts="T" title="End turn (T)">
             End turn{playersLeft ? ` (${playersLeft})` : ''}
           </button>
           <div className="hud-toggles">
-            <button className={danger ? 'toggle on' : 'toggle'} data-pad="y" onClick={() => setDanger(d => !d)} aria-pressed={danger}>Danger zone</button>
+            <button className={danger ? 'toggle on' : 'toggle'} data-pad="y" onClick={() => setDanger(d => !d)} aria-pressed={danger} aria-keyshortcuts="Z" title="Danger zone (Z)">Danger zone</button>
             <button className={details ? 'toggle on' : 'toggle'} data-pad="x" onClick={() => setDetails(d => !d)} aria-pressed={details}>Details</button>
             <button className="ghost" data-pad="start" onClick={() => setPaused(true)}>Menu</button>
           </div>

@@ -1,12 +1,16 @@
-/* Headless sanity test: validates map data and auto-plays the campaign with
-   AI controlling both sides. Run: npx esbuild test/sim.ts --bundle --platform=node --outfile=/tmp/sim.cjs && node /tmp/sim.cjs */
+/* Headless sanity test: validates map and documentation data, then auto-plays
+   the campaign with AI controlling both sides.
+   Run: npm test (or npm run sim) from the repository root. */
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { CHAPTERS } from '../src/game/data/chapters';
-import { TERRAIN } from '../src/game/data/terrain';
+import { TERRAIN, type TerrainDef } from '../src/game/data/terrain';
 import { CLASSES } from '../src/game/data/classes';
 import { WEAPONS } from '../src/game/data/weapons';
 import { PLAYER_TEMPLATES } from '../src/game/data/characters';
 import { planEnemy } from '../src/game/ai';
 import { forecast } from '../src/game/combat';
+import { manhattan } from '../src/game/pathfinding';
 import { applyAttack, applyBurn, applyHeal, applyOpen, applyTransform, createBattle, endEnemyPhase, endPlayerPhase, healTargets, markDone, outcome, parseMap, toResult } from '../src/game/battle';
 import { addRecruits, enterCamp, mergeBattle, newCampaign } from '../src/game/campaign';
 import { gainExp } from '../src/game/progression';
@@ -65,6 +69,164 @@ CHAPTERS.forEach((ch, ci) => {
   }
   if (ch.objective.type === 'seize' && map[ch.objective.y][ch.objective.x] !== 'throne') fail('seize tile');
 });
+
+// ---- AI behaviour: attacking a guard wakes the nearby post
+{
+  let c = newCampaign('casual');
+  c = addRecruits(c, 0);
+  const s = createBattle(0, c.roster, c.ranks);
+  const map = parseMap(CHAPTERS[0].map);
+  const lord = s.units.find(u => u.isLord);
+  const guards = s.units.filter(u => u.team === 'enemy' && u.ai === 'guard');
+  if (!lord || guards.length < 2) {
+    fail('ai: chapter 1 needs a lord and two guards for the wake check');
+  } else {
+    const target = guards[0];
+    const spot = [[0, -1], [1, 0], [0, 1], [-1, 0]]
+      .map(([dx, dy]) => ({ x: target.x + dx, y: target.y + dy }))
+      .find(p => {
+        const t = map[p.y]?.[p.x];
+        return !!t && Number.isFinite(TERRAIN[t].cost.foot) && !s.units.some(u => u.x === p.x && u.y === p.y);
+      });
+    const nearby = guards.filter(g => g.id !== target.id && manhattan(g, target) <= 4);
+    if (!spot) fail('ai: no free tile beside the first guard for the wake check');
+    else if (!nearby.length) fail('ai: expected a second guard within the wake radius');
+    else {
+      lord.x = spot.x; lord.y = spot.y;
+      const after = applyAttack(s, lord.id, target.id, lord.equipped, Math.random).state;
+      if (!nearby.every(g => after.units.find(u => u.id === g.id)?.ai === 'aggressive')) {
+        fail('ai: attacking a guard did not wake the nearby post');
+      }
+    }
+  }
+}
+
+// ---- documentation drift: canonical tables live in docs/manual.md
+type DocTable = { header: string[]; rows: string[][] };
+const docCells = (line: string): string[] => {
+  let s = line.trim();
+  if (s.startsWith('|')) s = s.slice(1);
+  if (s.endsWith('|')) s = s.slice(0, -1);
+  return s.split('|').map(c => c.trim());
+};
+// first markdown table whose header has every named column
+const docTable = (lines: string[], columns: string[]): DocTable | null => {
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i].trim().startsWith('|')) continue;
+    const header = docCells(lines[i]);
+    if (!columns.every(w => header.some(h => h.toLowerCase() === w.toLowerCase()))) continue;
+    const rows: string[][] = [];
+    for (let j = i + 1; j < lines.length && lines[j].trim().startsWith('|'); j++) {
+      if (/^\|[\s:|-]+\|?$/.test(lines[j].trim())) continue; // separator
+      rows.push(docCells(lines[j]));
+    }
+    return { header, rows };
+  }
+  return null;
+};
+// '+1' / '0' / '-' mean numbers, 'blocked' means Infinity; anything else is NaN
+const docNumber = (cell: string): number => {
+  const v = cell.trim();
+  if (/^blocked$/i.test(v)) return Number.POSITIVE_INFINITY;
+  if (/^[–—−-]$/.test(v)) return 0;
+  return /^[+-]?\d+$/.test(v) ? Number(v) : NaN;
+};
+const docNumberText = (n: number) => Number.isFinite(n) ? String(n) : 'blocked';
+// the npm scripts run at the repo root; walk up so a bundle under node_modules/.cache still works
+const findRoot = (from: string): string => {
+  let dir = resolve(from);
+  for (;;) {
+    if (existsSync(join(dir, 'src', 'game', 'data', 'terrain.ts'))) return dir;
+    const up = dirname(dir);
+    if (up === dir) return resolve(from);
+    dir = up;
+  }
+};
+{
+  const root = findRoot(process.cwd());
+  const docPath = join(root, 'docs', 'manual.md');
+  const docName = 'docs/manual.md';
+  if (!existsSync(docPath)) {
+    fail(`docs: ${docName} not found under ${root}; it holds the canonical rules tables`);
+  } else {
+    const text = readFileSync(docPath, 'utf8');
+    const lines = text.split(/\r?\n/);
+
+    const terrain = docTable(lines, ['Terrain', 'Def', 'Avoid', 'Foot', 'Armour', 'Horse', 'Flying']);
+    if (!terrain) {
+      fail(`docs: ${docName} has no terrain table (| Terrain | Def | Avoid | Foot | Armour | Horse | Flying |)`);
+    } else {
+      const labels = ['Def', 'Avoid', 'Foot', 'Armour', 'Horse', 'Flying'];
+      const cols = labels.map(label => terrain.header.findIndex(h => h.toLowerCase() === label.toLowerCase()));
+      for (const row of terrain.rows) {
+        if (cols.some(i => i >= row.length)) {
+          fail(`docs: ${docName} terrain row has ${row.length} columns: ${row.join(' | ')}`);
+          continue;
+        }
+        const names = row[0].replace(/\([^)]*\)/g, '').split(',').map(s => s.trim()).filter(Boolean);
+        if (!names.length) { fail(`docs: ${docName} terrain row has no name: ${row.join(' | ')}`); continue; }
+        const values = cols.map(i => docNumber(row[i]));
+        const bad = values.findIndex(v => Number.isNaN(v));
+        if (bad >= 0) {
+          fail(`docs: ${docName} terrain "${row[0]}" has unreadable ${labels[bad]} value "${row[cols[bad]]}"`);
+          continue;
+        }
+        for (const name of names) {
+          const key = name.toLowerCase() as keyof typeof TERRAIN;
+          const t: TerrainDef | undefined = TERRAIN[key];
+          if (!t) { fail(`docs: ${docName} terrain "${name}" is not in TERRAIN`); continue; }
+          if (t.id !== key || t.name.toLowerCase() !== name.toLowerCase()) {
+            fail(`docs: ${docName} terrain "${name}" does not match TERRAIN id "${t.id}" (name "${t.name}")`);
+          }
+          const actual = [t.def, t.avo, t.cost.foot, t.cost.armor, t.cost.horse, t.cost.flying];
+          labels.forEach((label, i) => {
+            if (values[i] !== actual[i]) fail(`docs: terrain ${t.id} ${label} is ${docNumberText(values[i])}, data is ${docNumberText(actual[i])}`);
+          });
+        }
+      }
+    }
+
+    for (const ch of CHAPTERS) {
+      if (!text.includes(ch.title)) fail(`docs: ${docName} never names chapter ${ch.number} "${ch.title}"`);
+    }
+    const words: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+    const count = /\b(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:story\s+)?chapters\b/i.exec(text);
+    if (count) {
+      const n = words[count[1].toLowerCase()] ?? Number(count[1]);
+      if (n !== CHAPTERS.length) fail(`docs: ${docName} says "${count[0]}", CHAPTERS has ${CHAPTERS.length}`);
+    }
+
+    const table = docTable(lines, ['Chapter', 'Houses']);
+    if (!table) {
+      fail(`docs: ${docName} has no chapter table (| Chapter | Setting | Houses |)`);
+    } else {
+      const housesCol = table.header.findIndex(h => h.toLowerCase() === 'houses');
+      const listed = new Set<number>();
+      for (const row of table.rows) {
+        if (row.length <= housesCol) { fail(`docs: ${docName} chapter row has ${row.length} columns: ${row.join(' | ')}`); continue; }
+        const m = /^(\d+)\b/.exec(row[0].trim());
+        if (!m) { fail(`docs: ${docName} chapter row "${row[0]}" does not start with a number`); continue; }
+        const n = Number(m[1]);
+        if (listed.has(n)) fail(`docs: ${docName} lists chapter ${n} twice`);
+        listed.add(n);
+        const ch = CHAPTERS.find(c => c.number === n);
+        if (!ch) { fail(`docs: ${docName} chapter ${n} is not in CHAPTERS`); continue; }
+        const cell = row[housesCol].trim();
+        const lead = /^(\d+)/.exec(cell);
+        let houses: number;
+        if (/^none$/i.test(cell)) houses = 0;
+        else if (lead) houses = Number(lead[1]);
+        else if (cell) houses = 1; // descriptive cell such as "a woodward's lone cabin"
+        else { fail(`docs: ${docName} chapter ${n} has an empty Houses cell`); continue; }
+        const actual = ch.houses?.length ?? 0;
+        if (houses !== actual) fail(`docs: chapter ${n} documents ${houses} house(s), data has ${actual}`);
+      }
+      for (const ch of CHAPTERS) {
+        if (!listed.has(ch.number)) fail(`docs: ${docName} chapter table omits chapter ${ch.number} (${ch.title})`);
+      }
+    }
+  }
+}
 
 // ---- auto-play
 function playerTurn(s: BattleState): BattleState {

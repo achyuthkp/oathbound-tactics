@@ -49,6 +49,7 @@ export function TitleScreen({ canContinue, onNew, onContinue, onLoad }: { canCon
           <div className="help" onClick={e => e.stopPropagation()}>
             <h2>How to play</h2>
             <p className="hint">Controllers work too (Xbox, PS5, Steam Deck): the D-pad or left stick moves the cursor, Kael at camp, and the highlight in menus. A / ✕ confirms, B / ○ goes back, LB RB / L1 R1 jump between units, and buttons on screen show which pad button presses them.</p>
+            <p className="hint">Keyboard: T ends your turn, Z toggles the danger zone, R switches weapons while aiming, D opens details, and F5 / F9 quicksave and quickload.</p>
             <div className="help-cols">
               <div>
                 <h3>Your turn</h3>
@@ -61,7 +62,7 @@ export function TitleScreen({ canContinue, onNew, onContinue, onLoad }: { canCon
               <div>
                 <TriangleLegend />
                 <h3>Between battles</h3>
-                <p>After every victory you make camp. Walk Kael around with WASD or the arrow keys (or click the ground). Walk up to the fire, training dummies, cooking pot or merchant and press E. Each night has three activities; the armory is free.</p>
+                <p>After each victory except the last, you make camp. Walk Kael around with WASD or the arrow keys (or click the ground). Walk up to the fire, training dummies, cooking pot or merchant and press E. Each night has three activities; the armory is free.</p>
                 <h3>Bonds</h3>
                 <p>Companions who fight side by side grow closer. View their conversations at camp to raise their rank and earn battle bonuses. A few bonds can blossom into romance.</p>
               </div>

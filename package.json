@@ -3,12 +3,18 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "export-art": "esbuild scripts/export-art.tsx --bundle --platform=node --jsx=automatic --log-level=warning --outfile=node_modules/.cache/export-art.cjs && node node_modules/.cache/export-art.cjs"
+    "export-art": "esbuild scripts/export-art.tsx --bundle --platform=node --jsx=automatic --log-level=warning --outfile=node_modules/.cache/export-art.cjs && node node_modules/.cache/export-art.cjs",
+    "sim": "esbuild test/sim.ts --bundle --platform=node --outfile=node_modules/.cache/sim.cjs && node node_modules/.cache/sim.cjs",
+    "test": "npm run sim",
+    "release": "npm run build && node scripts/release.mjs"
   },
   "dependencies": {
     "react": "18.3.1",
@@ -19,6 +25,7 @@
     "@types/react": "18.3.12",
     "@types/react-dom": "18.3.1",
     "@vitejs/plugin-react": "4.3.4",
+    "esbuild": "^0.21.5",
     "typescript": "5.6.3",
     "vite": "5.4.11",
     "vite-plugin-singlefile": "2.0.3"
