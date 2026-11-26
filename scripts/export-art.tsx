@@ -11,7 +11,7 @@ import { createRef } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { CHARACTERS, buildFor, lookById, lookFor } from '../src/game/data/characters';
 import { CLASSES } from '../src/game/data/classes';
-import { ALLY_IDS, ARCHETYPES, NPC_IDS, PROFILES } from '../src/game/data/profiles';
+import { ALLY_IDS, ARCHETYPES, LATER_IDS, NPC_IDS, PROFILES } from '../src/game/data/profiles';
 import { Portrait, type Mood } from '../src/components/art';
 import { Figure, SCENARIO_POSES, attackPose, type Pose } from '../src/components/figure';
 import { MapArt, ROUTES } from '../src/components/WorldMap';
@@ -33,11 +33,11 @@ mkdirSync('art/models', { recursive: true });
 
 const moods: Mood[] = ['neutral', 'happy', 'angry', 'sad', 'surprised'];
 let count = 0;
-for (const id of [...ALLY_IDS, ...NPC_IDS]) {
+for (const id of [...ALLY_IDS, ...LATER_IDS, ...NPC_IDS]) {
   for (const m of moods) { write(`art/portraits/${id}-${m}.svg`, renderToStaticMarkup(<Portrait look={lookById(id)} mood={m} size={400} />)); count++; }
   write(`art/portraits/${id}-talking.svg`, renderToStaticMarkup(<Portrait look={lookById(id)} talking size={400} />)); count++;
 }
-for (const id of [...ALLY_IDS, ...NPC_IDS, ...Object.keys(ARCHETYPES)]) {
+for (const id of [...ALLY_IDS, ...LATER_IDS, ...NPC_IDS, ...Object.keys(ARCHETYPES)]) {
   const p = PROFILES[id] ?? ARCHETYPES[id];
   const u = { id, classId: p.classId, lookId: CHARACTERS[id] ? id : undefined };
   const weapon = CLASSES[p.classId].weapons[0];

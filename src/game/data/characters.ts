@@ -96,6 +96,10 @@ const CHAR_BUILD: Record<string, Partial<Build>> = {
   malrec: { cape: '#4a1408', pants: '#1a1a20' },
   pip: { pants: '#2a2a32', boots: '#2a2018', cape: '#3a4a3a' },
   sable: { coat: '#5a3f9a', mane: '#241640' },
+  nerys: { pants: '#1c3048', boots: '#16283a' },
+  garrow: { outfit: 'leather', broad: true, pants: '#3d3020', boots: '#2a2014' },
+  kestrel: { outfit: 'light', pants: '#2f5a4a', boots: '#24382e' },
+  aurelie: { pants: '#e8dcc0', boots: '#c9a45a' },
 };
 
 export function buildFor(u: { id: string; classId: string; lookId?: string; dragon?: number; weapons?: { defId: string }[] }, opts: { dismount?: boolean; element?: Element } = {}): Build {
@@ -105,7 +109,7 @@ export function buildFor(u: { id: string; classId: string; lookId?: string; drag
     ...CHAR_BUILD[u.lookId ?? u.id],
   };
   if (opts.dismount) delete b.mount;
-  if (CLASSES[u.classId]?.shifts) b.element = opts.element ?? elementOf(u.weapons) ?? 'fire';
+  if (CLASSES[u.classId]?.shifts) b.element = opts.element ?? elementOf(u.weapons) ?? elementOf(PLAYER_TEMPLATES[u.lookId ?? u.id]?.weapons.map(defId => ({ defId }))) ?? 'fire';
   if (u.dragon) b.form = 'dragon'; // coloured by its element unless the character has their own colours
   return b;
 }
@@ -124,6 +128,10 @@ export const CHARACTERS: Record<string, CharacterInfo> = {
   sable: { name: 'Sable', title: 'Last of the Dragonkin', look: { skin: '#e9d6dc', hair: '#3a2a6a', style: 'long', cloth: '#2f2548', accent: '#b08ae8', horns: true, eyes: '#b08ae8', lashes: true, outfit: 'robe' } },
   osric: { name: 'Osric', title: 'Woodward of the Whispering Wood', look: { skin: '#c9966e', hair: '#9a9a96', style: 'short', cloth: '#4a5a3a', accent: '#b8943c', stubble: true, scar: true, eyes: '#5a6a4a', outfit: 'armor' } },
   ilse: { name: 'Ilse', title: 'Highmoor Sky Guard', look: { skin: '#f5dcc6', hair: '#a8cdea', style: 'bun', cloth: '#dfe7f0', accent: '#3d6fb0', eyes: '#3d84b8', lashes: true, freckles: true, outfit: 'light' } },
+  nerys: { name: 'Nerys', title: 'Warden of Saltmere', look: { skin: '#e6cdb8', hair: '#2f6fa8', style: 'long', cloth: '#1f4a6a', accent: '#7fd0f0', horns: true, eyes: '#7fd0f0', lashes: true, outfit: 'robe' } },
+  garrow: { name: 'Garrow', title: 'Stone-Keeper of Deepforge', look: { skin: '#b98a62', hair: '#4a3a22', style: 'rugged', cloth: '#5a4a30', accent: '#a8916a', horns: true, stubble: true, eyes: '#b8ff6a', outfit: 'leather' } },
+  kestrel: { name: 'Kestrel', title: 'Sky-Born of Galewatch', look: { skin: '#efd6be', hair: '#cfeee0', style: 'spiky', cloth: '#3f7a64', accent: '#e0fff4', horns: true, eyes: '#5fb89a', outfit: 'light' } },
+  aurelie: { name: 'Aurelie', title: 'Goddess of Solenne', look: { skin: '#f8e6d6', hair: '#f2d68a', style: 'long', cloth: '#f6f0e0', accent: '#e2b23c', horns: true, eyes: '#3f9ae8', lashes: true, outfit: 'robe' } },
   // NPCs and bosses
   gorran: { name: 'Gorran', title: 'Brigand Chief', look: { skin: '#cf9a74', hair: '#2a2420', style: 'rugged', cloth: '#5a3424', accent: '#8a2a20', eyes: '#3a2a1a', outfit: 'raider' } },
   varn: { name: 'Varn', title: 'Imperial Captain', look: { skin: '#dcae8a', hair: '#333', style: 'helm', cloth: '#4a2228', accent: '#c23b3b', stubble: true, eyes: '#4a3a2a', outfit: 'armor' } },
@@ -177,6 +185,10 @@ export const PLAYER_TEMPLATES: Record<string, PlayerTemplate> = {
   pip: { classId: 'thief', level: 3, stats: s(19, 5, 8, 12, 7, 3), growth: s(60, 35, 50, 65, 50, 15), weapons: ['dagger', 'iron_sword'] },
   sable: { classId: 'manakete', level: 5, stats: s(22, 4, 5, 6, 6, 4), growth: s(80, 45, 35, 40, 40, 30), weapons: ['fire_breath'] },
   osric: { classId: 'soldier', level: 6, stats: s(26, 9, 8, 7, 5, 8), growth: s(75, 45, 40, 35, 30, 35), weapons: ['steel_lance'] },
+  nerys: { classId: 'manakete', level: 7, stats: s(24, 5, 8, 8, 7, 5), growth: s(75, 40, 50, 45, 45, 30), weapons: ['water_breath'] },
+  garrow: { classId: 'manakete', level: 8, stats: s(30, 7, 4, 3, 4, 8), growth: s(90, 50, 30, 20, 30, 50), weapons: ['earth_breath'] },
+  kestrel: { classId: 'manakete', level: 8, stats: s(22, 6, 8, 11, 8, 4), growth: s(65, 40, 50, 60, 50, 20), weapons: ['wind_breath'] },
+  aurelie: { classId: 'manakete', level: 6, stats: s(21, 5, 7, 7, 10, 5), growth: s(70, 45, 45, 45, 60, 30), weapons: ['light_breath'] },
   ilse: { classId: 'skyknight', level: 6, stats: s(23, 8, 8, 11, 7, 6), growth: s(65, 40, 45, 55, 50, 20), weapons: ['iron_lance', 'killer_lance'] },
 };
 
@@ -191,6 +203,10 @@ export const CHARACTER_ENDINGS: Record<string, string> = {
   pip: 'Pip was appointed Keeper of the King\'s Locks, a post invented so that someone would be watching Pip.',
   sable: 'Sable flew north when the war ended. On clear nights the people of Highmoor still look up.',
   osric: 'Osric went back to his wood and his axe. Every spring a cask of Caer Valen wine arrives at his door, unsigned.',
+  nerys: 'Nerys returned to Saltmere and never again let a ship go down within sight of the harbour. The fishermen leave a cup of wine on the pier for her every autumn, and she drinks it, and pretends she doesn\'t.',
+  garrow: 'Garrow filled in every tunnel beneath Deepforge, one stone at a time. It took him eleven years, and he called them the best years of his life.',
+  kestrel: 'Kestrel joined the new Sky Guard as its first and only dragon. Recruits learned to fly by chasing the shape of the wind over Galewatch.',
+  aurelie: 'Aurelie went home to Solenne, but not to its altar. She opened the temple\'s doors to anyone who wanted to talk, and she always answered to her name.',
   ilse: 'Ilse rode the skies of Highmoor until her hair turned grey, and the Sky Guard flew again.',
 };
 

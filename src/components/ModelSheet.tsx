@@ -1,19 +1,19 @@
 import { CHARACTERS, buildFor, lookFor } from '../game/data/characters';
 import { CLASSES } from '../game/data/classes';
-import { ALLY_IDS, ARCHETYPES, NPC_IDS, PROFILES } from '../game/data/profiles';
+import { ALLY_IDS, ARCHETYPES, LATER_IDS, NPC_IDS, PROFILES } from '../game/data/profiles';
 import { Figure, SCENARIO_POSES, attackPose, type Pose } from './figure';
 import { Portrait, type Mood } from './art';
 import { lookById } from '../game/data/characters';
 
 /** Character model sheet: open the game with #gallery to see every model in every pose. */
 export function ModelSheet() {
-  const ids = [...ALLY_IDS, ...NPC_IDS, ...Object.keys(ARCHETYPES)];
+  const ids = [...ALLY_IDS, ...LATER_IDS, ...NPC_IDS, ...Object.keys(ARCHETYPES)];
   return (
     <div className="model-sheet">
       <h1>Character model sheet</h1>
       <h2>Portrait expressions</h2>
       <div className="ms-portraits">
-        {[...ALLY_IDS, ...NPC_IDS].map(id => (
+        {[...ALLY_IDS, ...LATER_IDS, ...NPC_IDS].map(id => (
           <div key={id} className="ms-prow">
             <span>{PROFILES[id].name}</span>
             {(['neutral', 'happy', 'angry', 'sad', 'surprised'] as Mood[]).map(m => (

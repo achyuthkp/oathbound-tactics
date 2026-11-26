@@ -56,10 +56,13 @@ two of them. If both of those partners stand next to each other in battle, both 
 bonuses and take -10 hit and -10 avoid (jealousy). This is an easter egg: never explain it to
 the player anywhere in the game or the manual.
 
+## Built so far
+
+- The hidden romance rule: `ROMANCE_LIMIT` in `src/game/campaign.ts` (Kael: 2) and `jealous()` in `src/game/combat.ts`. When a third romance is blocked, the camp shows the ordinary "already holds an S bond" message, and the forecast never shows the penalty. The epilogue has a special entry when Kael holds two romances.
+- Nerys, Garrow, Kestrel and Aurelie: looks, builds, templates, profiles, endings, and bonds (Kael and Aurelie romance; Aurelie and Mira; Sable and Garrow; Ilse and Kestrel). They are in `LATER_IDS`: shown in the sprite browser and model sheet and placeable in challenge mode, but kept out of the title-screen codex until their chapters exist. None of them is recruited by any chapter yet.
+
 ## Still to build
 
-- The romance limit and jealousy rule above.
-- Sprites, portraits, profiles and bonds for Nerys, Garrow, Kestrel and Aurelie.
 - Chapters 6 to 15, a few at a time; enemy dragonkin of every element placed on them.
 - The Dark Dragon as a 3x3 unit before chapter 15.
 - Optional: pirates and a sea movement type around Saltmere.

@@ -191,6 +191,111 @@ export const SUPPORTS: SupportPair[] = [
       ] },
     ],
   },
+  {
+    a: 'kael', b: 'aurelie', romance: true, start: 0,
+    ending: 'Kael married Aurelie in Solenne\'s temple, which she insisted on sweeping herself first. Aldmere called her its dawn queen, and she never once let anyone kneel to her twice.',
+    convos: [
+      { rank: 'C', lines: [
+        L('aurelie', 'Kael. In Solenne nobody spoke to me without kneeling first. You just asked me to pass the bread.'),
+        L('kael', 'Did you want me to kneel?'),
+        L('aurelie', 'No! No. I liked it. Ask me to pass something else.', 'happy'),
+        L('kael', '...The salt?'),
+        L('aurelie', 'Gladly.', 'happy'),
+      ] },
+      { rank: 'B', lines: [
+        L('kael', 'You\'ve been staring at the river for an hour.'),
+        L('aurelie', 'They told me my light was a blessing from the sky. It came from my own blood. Everything they built around me was a beautiful mistake.', 'sad'),
+        L('kael', 'They loved you. That part wasn\'t a mistake.'),
+        L('aurelie', 'They loved a goddess. I don\'t know yet who they\'d have loved if they had met me.'),
+        L('kael', 'Then let people meet you. Starting with me.'),
+      ] },
+      { rank: 'A', lines: [
+        L('aurelie', 'Rei tried to teach me a sword stance today. I fell over four times.'),
+        L('kael', 'Only four? Lyra beat me five times when we were children.'),
+        L('aurelie', 'Rei says I\'m hopeless. I\'ve never been hopeless at anything before. It\'s wonderful.', 'happy'),
+        L('kael', 'You\'re a strange woman, Aurelie.'),
+        L('aurelie', 'I\'m a dragon, Kael. But thank you for noticing the woman part.'),
+      ] },
+      { rank: 'S', lines: [
+        L('kael', 'When this is over, Solenne will want its goddess back.'),
+        L('aurelie', 'And Aldmere will want its king. We\'ll both be expected to stand very still on very high platforms.', 'sad'),
+        L('kael', 'Then let\'s stand on the same one. Stay with me. Not as a goddess, not as a weapon. As you.'),
+        L('aurelie', 'Do you know, nobody has ever asked me what I want?', 'surprised'),
+        L('aurelie', 'I want this. I want you.'),
+        L('kael', 'Then it\'s settled.'),
+        L('aurelie', 'You said that like a king. Say it again like Kael.', 'happy'),
+        L('kael', 'I love you.'),
+      ] },
+    ],
+  },
+  {
+    a: 'aurelie', b: 'mira', romance: false, start: 0,
+    convos: [
+      { rank: 'C', lines: [
+        L('mira', 'You pray, don\'t you? I\'ve heard you at night.'),
+        L('aurelie', 'I don\'t know who to pray to. For twenty years people prayed to me.'),
+        L('mira', 'Then pray with me. Saint Edda never minded company.'),
+        L('aurelie', 'Is that allowed?'),
+        L('mira', 'I\'ve decided it is.', 'happy'),
+      ] },
+      { rank: 'B', lines: [
+        L('aurelie', 'A wounded soldier called me "holy one" today. I told him my name, and he cried.'),
+        L('mira', 'Sometimes people need a name more than a miracle.'),
+        L('aurelie', 'Then I\'ll give them mine. It\'s the one thing I have that is really mine.'),
+      ] },
+      { rank: 'A', lines: [
+        L('aurelie', 'Teach me to bind a wound. Properly, I mean. Not as a blessing.'),
+        L('mira', 'Roll up your sleeves, hold still, and stop glowing at me.'),
+        L('aurelie', '...Yes, Sister Mira.', 'happy'),
+      ] },
+    ],
+  },
+  {
+    a: 'sable', b: 'garrow', romance: false, start: 0,
+    convos: [
+      { rank: 'C', lines: [
+        L('garrow', 'Sable. You slept.'),
+        L('sable', 'And you dug. We all did what we could.'),
+        L('garrow', 'I dug for him for a year before I put the pick down.', 'sad'),
+        L('sable', 'You put it down. That\'s the part that counts.'),
+      ] },
+      { rank: 'B', lines: [
+        L('sable', 'You never speak first, Garrow.'),
+        L('garrow', 'Stone doesn\'t.'),
+        L('sable', 'You\'re not stone. You\'re just very, very patient.'),
+        L('garrow', '...Same thing, at my age.', 'happy'),
+      ] },
+      { rank: 'A', lines: [
+        L('garrow', 'When it\'s done, I\'ll fill in the tunnels under Deepforge.'),
+        L('sable', 'All of them? That\'s years of work.'),
+        L('garrow', 'I have years. And I\'d like company.'),
+        L('sable', 'Then I\'ll carry the lantern.', 'happy'),
+      ] },
+    ],
+  },
+  {
+    a: 'ilse', b: 'kestrel', romance: false, start: 0,
+    convos: [
+      { rank: 'C', lines: [
+        L('kestrel', 'Your pegasus is slow.'),
+        L('ilse', 'Gale is not slow. Gale is dignified.', 'angry'),
+        L('kestrel', 'Race you to the ridge, then. Dignified.'),
+        L('ilse', '...You\'re on.'),
+      ] },
+      { rank: 'B', lines: [
+        L('ilse', 'The Sky Guard flew out of Galewatch, once. You must have watched us.'),
+        L('kestrel', 'Every morning. I used to fly behind your formation and copy it.'),
+        L('ilse', 'That was you? We thought it was a very rude hawk.', 'surprised'),
+        L('kestrel', 'It was a very rude dragon.', 'happy'),
+      ] },
+      { rank: 'A', lines: [
+        L('kestrel', 'Malrec\'s voice is quieter up here. The wind drowns it out.'),
+        L('ilse', 'Then stay up here with us. The Sky Guard has room for one more.'),
+        L('kestrel', 'A dragon in the Sky Guard?'),
+        L('ilse', 'You already know the formations.', 'happy'),
+      ] },
+    ],
+  },
 ];
 
 export const SUPPORT_KEYS = new Set(SUPPORTS.map(p => pairKey(p.a, p.b)));

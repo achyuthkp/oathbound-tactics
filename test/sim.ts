@@ -7,14 +7,17 @@ import { CHAPTERS } from '../src/game/data/chapters';
 import { TERRAIN, type TerrainDef } from '../src/game/data/terrain';
 import { CLASSES } from '../src/game/data/classes';
 import { WEAPONS } from '../src/game/data/weapons';
-import { PLAYER_TEMPLATES, elementOf } from '../src/game/data/characters';
+import { PLAYER_TEMPLATES, buildFor, createPlayerUnit, elementOf } from '../src/game/data/characters';
+import { PROFILES } from '../src/game/data/profiles';
+import { SUPPORTS, pairKey } from '../src/game/data/supports';
+import { bondBonus } from '../src/game/combat';
 import { planEnemy } from '../src/game/ai';
 import { forecast } from '../src/game/combat';
 import { manhattan } from '../src/game/pathfinding';
 import { applyAttack, applyBurn, applyHeal, applyOpen, applyTransform, createBattle, endEnemyPhase, endPlayerPhase, applySteal, healTargets, markDone, outcome, parseMap, shutDoors, stealOptions, toResult } from '../src/game/battle';
 import { makeEnemy } from '../src/game/units';
 import { defaultEnemy, exportChallenge, newChallenge, parseChallenge, playerUnits, problems, resize, setTile, toChapter, type ChallengeMap } from '../src/game/challenge';
-import { addRecruits, enterCamp, mergeBattle, newCampaign } from '../src/game/campaign';
+import { addRecruits, enterCamp, mergeBattle, newCampaign, romanceFull } from '../src/game/campaign';
 import { gainExp } from '../src/game/progression';
 import type { BattleState, Campaign } from '../src/game/types';
 
@@ -341,6 +344,40 @@ function runCampaign(): string {
   }
   return notes.join(' ') + ' | lv ' + c.roster.map(u => `${u.id}${u.level}`).join(',');
 }
+
+// ---- hidden romance rule (docs/story.md): Kael may hold two S bonds; those two side by side are jealous
+{
+  const ranks = (r: Record<string, number>) => ({ ranks: r });
+  if (romanceFull(ranks({}), 'kael') || romanceFull(ranks({ 'kael|lyra': 4 }), 'kael')) fail('romance: Kael should be able to hold a second S bond');
+  if (!romanceFull(ranks({ 'kael|lyra': 4, 'kael|mira': 4 }), 'kael')) fail('romance: Kael should be full after two S bonds');
+  if (!romanceFull(ranks({ 'kael|lyra': 4 }), 'lyra')) fail('romance: everyone else holds one S bond');
+  const c = addRecruits(addRecruits(newCampaign('casual'), 0), 1);
+  const s = createBattle(0, c.roster, { 'kael|lyra': 4, 'kael|mira': 4 });
+  const lyra = s.units.find(u => u.id === 'lyra')!, mira = s.units.find(u => u.id === 'mira')!, kael = s.units.find(u => u.isLord)!;
+  for (const u of s.units) if (u.team === 'enemy') u.hp = 0;
+  kael.x = 0; kael.y = 0; lyra.x = 5; lyra.y = 5; mira.x = 6; mira.y = 5;
+  const others = s.units.filter(u => u.team === 'player' && ![kael, lyra, mira].includes(u));
+  others.forEach((u, i) => { u.x = 15 + i; u.y = 12; });
+  if (bondBonus(s, lyra, lyra).hit !== -10 || bondBonus(s, mira, mira).avo !== -10) fail('romance: two romances side by side should be jealous (-10 hit and avoid)');
+  mira.x = 7;
+  if (bondBonus(s, lyra, lyra).hit !== 0) fail('romance: two tiles apart there is no jealousy');
+  kael.x = 5; kael.y = 4;
+  if (bondBonus(s, lyra, lyra).hit !== 20) fail(`romance: Kael next to Lyra should give +20 hit, got ${bondBonus(s, lyra, lyra).hit}`);
+  const single = createBattle(0, c.roster, { 'kael|lyra': 4 });
+  const l2 = single.units.find(u => u.id === 'lyra')!, m2 = single.units.find(u => u.id === 'mira')!;
+  single.units.forEach((u, i) => { u.x = i; u.y = 13; });
+  l2.x = 5; l2.y = 5; m2.x = 6; m2.y = 5;
+  if (bondBonus(single, l2, l2).hit < 0) fail('romance: with only one romance there is no jealousy');
+}
+
+// ---- the dragonkin who join later: playable, drawn in their own element
+for (const [id, el] of [['nerys', 'water'], ['garrow', 'earth'], ['kestrel', 'wind'], ['aurelie', 'light']] as const) {
+  const u = createPlayerUnit(id);
+  if (!CLASSES[u.classId].shifts) fail(`dragonkin: ${id} should be a dragonkin`);
+  if (buildFor({ id, classId: u.classId }).element !== el) fail(`dragonkin: ${id} should be drawn as ${el}`);
+  if (!PROFILES[id]) fail(`dragonkin: ${id} has no profile`);
+}
+if (!SUPPORTS.some(p => p.romance && pairKey(p.a, p.b) === pairKey('kael', 'aurelie'))) fail('romance: Kael and Aurelie should be a romance');
 
 // ---- challenge mode: a default map is playable, rules hold, files round-trip
 {

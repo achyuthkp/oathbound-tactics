@@ -3,7 +3,7 @@ import { CHAPTERS } from '../../game/data/chapters';
 import { lookFor, lookById, nameById } from '../../game/data/characters';
 import { SHOP_WEAPONS, WEAPONS } from '../../game/data/weapons';
 import { MEAL_BOND, RANKS, RANK_THRESHOLD, SUPPORT_GIFTS, pairKey, rankLetter } from '../../game/data/supports';
-import { activePairs, sPartner } from '../../game/campaign';
+import { activePairs, romanceFull, sPartner } from '../../game/campaign';
 import { TRAIN_EXP, gainExp } from '../../game/progression';
 import type { Campaign, SupportConvo, SupportPair, Unit } from '../../game/types';
 import { STAT_KEYS, STAT_LABEL } from '../../game/types';
@@ -152,8 +152,9 @@ export function CampScreen({ campaign: c, onChange, onMarch, onOpenSaveMenu, onT
     if (!cv) return null;
     const pts = c.bonds[k] ?? 0;
     if (cv.rank === 'S') {
-      const taken = [p.a, p.b].map(id => sPartner(c, id)).find(x => x);
-      if (taken) return { convo: cv, ready: false, reason: `${nameById(taken)} already holds an S bond` };
+      // the same message as the one-bond rule, so Kael's hidden second romance is never hinted at
+      const full = [p.a, p.b].find(id => romanceFull(c, id));
+      if (full) return { convo: cv, ready: false, reason: `${nameById(sPartner(c, full) ?? full)} already holds an S bond` };
     }
     return { convo: cv, ready: pts >= RANK_THRESHOLD[cv.rank] };
   };

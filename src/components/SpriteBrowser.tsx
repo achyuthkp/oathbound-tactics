@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { CHARACTERS, ELEMENTS, buildFor, lookById, lookFor, type Element } from '../game/data/characters';
 import { CLASSES } from '../game/data/classes';
-import { ALLY_IDS, ARCHETYPES, NPC_IDS, PROFILES } from '../game/data/profiles';
+import { ALLY_IDS, ARCHETYPES, LATER_IDS, NPC_IDS, PROFILES } from '../game/data/profiles';
 import { TERRAIN } from '../game/data/terrain';
 import { WEAPONS } from '../game/data/weapons';
 import type { TerrainId, WeaponType } from '../game/types';
@@ -42,7 +42,7 @@ const MOODS: (Mood | 'talking')[] = ['neutral', 'happy', 'angry', 'sad', 'surpri
 function allEntries(): Entry[] {
   const out: Entry[] = [];
   const ids: [string, Group][] = [
-    ...ALLY_IDS.map(id => [id, 'Companions'] as [string, Group]),
+    ...[...ALLY_IDS, ...LATER_IDS].map(id => [id, 'Companions'] as [string, Group]),
     ...NPC_IDS.map(id => [id, 'Villains'] as [string, Group]),
     ...Object.keys(ARCHETYPES).map(id => [id, 'Enemy types'] as [string, Group]),
   ];

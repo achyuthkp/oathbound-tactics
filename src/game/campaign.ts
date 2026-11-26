@@ -54,10 +54,18 @@ export function activePairs(c: Campaign): SupportPair[] {
   return SUPPORTS.filter(p => c.roster.some(u => u.id === p.a) && c.roster.some(u => u.id === p.b));
 }
 
-/** S-rank partner of a unit, if any. */
-export function sPartner(c: Campaign, id: string): string | null {
-  for (const p of SUPPORTS) {
-    if ((p.a === id || p.b === id) && (c.ranks[pairKey(p.a, p.b)] ?? 0) >= 4) return p.a === id ? p.b : p.a;
-  }
-  return null;
-}
+/**
+ * How many S-rank (romance) bonds a unit may hold; everyone else holds one.
+ * HIDDEN EASTER EGG (docs/story.md): Kael can hold two. Never explain this in game text or the manual.
+ */
+export const ROMANCE_LIMIT: Record<string, number> = { kael: 2 };
+
+/** A unit's S-rank partners, in bond order. */
+export const sPartners = (c: Pick<Campaign, 'ranks'>, id: string): string[] =>
+  SUPPORTS.filter(p => (p.a === id || p.b === id) && (c.ranks[pairKey(p.a, p.b)] ?? 0) >= 4).map(p => (p.a === id ? p.b : p.a));
+
+/** First S-rank partner of a unit, if any. */
+export const sPartner = (c: Pick<Campaign, 'ranks'>, id: string): string | null => sPartners(c, id)[0] ?? null;
+
+/** No more S bonds for this unit. */
+export const romanceFull = (c: Pick<Campaign, 'ranks'>, id: string): boolean => sPartners(c, id).length >= (ROMANCE_LIMIT[id] ?? 1);

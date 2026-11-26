@@ -106,11 +106,22 @@ export function EndingScreen({ campaign, onTitle }: { campaign: Campaign; onTitl
   const sPairs = SUPPORTS.filter(p => p.romance && (campaign.ranks[pairKey(p.a, p.b)] ?? 0) >= 4 && alive.includes(p.a) && alive.includes(p.b));
   const paired = new Set(sPairs.flatMap(p => [p.a, p.b]));
   const solo = alive.filter(id => !paired.has(id));
+  // the hidden two-romance ending: one entry for the three of them instead of two weddings
+  const lover = Object.entries(sPairs.flatMap(p => [p.a, p.b]).reduce<Record<string, number>>((m, id) => ({ ...m, [id]: (m[id] ?? 0) + 1 }), {})).find(([, n]) => n > 1)?.[0];
+  const triangle = lover ? sPairs.filter(p => p.a === lover || p.b === lover) : [];
+  const rivals = triangle.map(p => (p.a === lover ? p.b : p.a));
+  const pairsShown = sPairs.filter(p => !triangle.includes(p));
   return (
     <div className="ending">
       <h1>Epilogue</h1>
       <div className="ending-list">
-        {sPairs.map(p => (
+        {lover && (
+          <article className="ending-pair">
+            <div className="bond-faces">{[lover, ...rivals].map(id => <Portrait key={id} look={lookById(id)} size={64} />)}</div>
+            <p>{nameById(lover)} never chose between {rivals.map(nameById).join(' and ')}, and the court never stopped whispering about it. The two of them were never seated at the same table, and the royal chroniclers wisely wrote nothing down.</p>
+          </article>
+        )}
+        {pairsShown.map(p => (
           <article key={pairKey(p.a, p.b)} className="ending-pair">
             <div className="bond-faces"><Portrait look={lookById(p.a)} size={64} /><Portrait look={lookById(p.b)} size={64} /></div>
             <p>{p.ending}</p>

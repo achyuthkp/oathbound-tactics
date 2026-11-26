@@ -28,10 +28,26 @@ export function terrainBonus(s: BattleState, u: Unit, p: Pos): { def: number; av
   return { def: t.def, avo: t.avo };
 }
 
+/** Hit and avoid for a unit standing next to its partner's other romance. */
+const JEALOUS_PENALTY = -10;
+/** S-rank partners of a unit, read from the battle's ranks. */
+const lovers = (s: BattleState, id: string): string[] =>
+  Object.entries(s.ranks).filter(([k, r]) => r >= 4 && k.split('|').includes(id)).map(([k]) => k.split('|').find(x => x !== id)!);
+/**
+ * HIDDEN EASTER EGG (docs/story.md): when someone holds two romances, those two partners standing
+ * next to each other are jealous: they lose all bond support and take a penalty. Never explained in game.
+ */
+function jealous(s: BattleState, u: Unit, p: Pos): boolean {
+  const mine = lovers(s, u.id);
+  return mine.length > 0 && s.units.some(o => o.team === 'player' && o.id !== u.id && o.hp > 0 && manhattan(o, p) === 1
+    && lovers(s, o.id).some(x => mine.includes(x)));
+}
+
 /** Allies with a bond rank within 2 tiles grant +5 hit / +5 avoid per rank (S also +5 crit). */
 export function bondBonus(s: BattleState, u: Unit, p: Pos): { hit: number; avo: number; crit: number } {
   let hit = 0, avo = 0, crit = 0;
   if (u.team !== 'player') return { hit, avo, crit };
+  if (jealous(s, u, p)) return { hit: JEALOUS_PENALTY, avo: JEALOUS_PENALTY, crit: 0 };
   for (const o of s.units) {
     if (o.team !== 'player' || o.id === u.id || o.hp <= 0) continue;
     if (manhattan(o, p) > 2) continue;

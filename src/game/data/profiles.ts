@@ -183,6 +183,47 @@ PROFILES.osric = {
   design: 'The only companion who is not met in the story: he waits in a house on the edge of the Chapter 3 map and is missed entirely if no one visits.',
 };
 
+PROFILES.nerys = {
+  id: 'nerys', name: 'Nerys', title: 'Warden of Saltmere', age: 'Looks 28', classId: 'manakete', height: '172 cm', side: 'ally',
+  origin: 'A water dragonkin who has guarded Saltmere\'s fishing fleet for a century without the town ever learning her name. When Malrec\'s call came she held on by staying in the cold deep water, where his voice is faint.',
+  personality: 'Dry, private and allergic to gratitude. Shows affection by fixing things nobody asked her to fix.',
+  appearance: 'Sea-blue hair worn loose, small pale horns, and a deep-blue robe that is always a little damp at the hem.',
+  combat: 'Cannot fight in human form. As a water dragon her Tide Breath reaches two tiles and almost never misses, though it hits less hard than fire.',
+  likes: 'Cold water, quiet harbours, salted fish.', dislikes: 'Being thanked. Shallow water.',
+  quote: 'Don\'t thank me. Just stop sinking.',
+  design: 'Cool blues beside Sable\'s violet. The accurate dragon: lower might, very high hit.',
+};
+PROFILES.garrow = {
+  id: 'garrow', name: 'Garrow', title: 'Stone-Keeper of Deepforge', age: 'Looks 45', classId: 'manakete', height: '196 cm', side: 'ally',
+  origin: 'An earth dragonkin who lived under the Deepforge hills before there were miners in them. Bound by Malrec and made to dig toward the Dark Dragon\'s seal, he worked for a year before he found the will to put the pick down.',
+  personality: 'Slow to speak, slower to anger, impossible to move once decided. Carries the guilt of every tunnel he dug.',
+  appearance: 'The broadest of the dragonkin: weathered brown skin, earth-brown hair and beard, short horns like chipped stone, and a miner\'s leather apron.',
+  combat: 'Cannot fight in human form. As an earth dragon his Stone Breath hits harder than any other breath and breaks armour, but reaches only one tile.',
+  likes: 'Warm stone, honest work, long silences.', dislikes: 'Tunnels. Being hurried.',
+  quote: 'I dug for him for a year. I\'ll spend the rest of my life filling it in.',
+  design: 'A heavy, grounded silhouette among the dragonkin. Short range and huge damage: he has to be walked into position.',
+};
+PROFILES.kestrel = {
+  id: 'kestrel', name: 'Kestrel', title: 'Sky-Born of Galewatch', age: 'Looks 25', classId: 'manakete', height: '168 cm', side: 'ally',
+  origin: 'A wind dragonkin from the peaks above Galewatch who spent decades flying behind the Sky Guard\'s formations for fun. Malrec\'s voice cannot reach far above the clouds, so Kestrel simply refused to come down.',
+  personality: 'Restless, talkative and allergic to standing still. Jokes through fear. Fiercely loyal to anyone who can keep up.',
+  appearance: 'Pale mint hair blown permanently sideways, swept-back horns, and light green flying leathers.',
+  combat: 'Cannot fight in human form. As a wind dragon the Gale Breath reaches three tiles and is deadly to fliers, but hits lighter than the others.',
+  likes: 'Storms, races, Ilse\'s formations.', dislikes: 'Ceilings. Waiting.',
+  quote: 'Keep up or get out of my sky.',
+  design: 'Light and quick-looking; the hair and horns lean back as if always in a headwind.',
+};
+PROFILES.aurelie = {
+  id: 'aurelie', name: 'Aurelie', title: 'Goddess of Solenne', age: 'Looks 22', classId: 'manakete', height: '165 cm', side: 'ally',
+  origin: 'A light dragonkin found as an infant on the temple steps of Solenne and raised as its living goddess. Nobody in Solenne knew what she was, Aurelie least of all. Malrec wants her light to complete his hold over the dragonkin.',
+  personality: 'Serene in public, endlessly curious in private. Has never been allowed to be bad at anything, and finds it thrilling.',
+  appearance: 'Pale gold hair to the waist, small ivory horns, and a white and gold temple robe she keeps trying to swap for something practical.',
+  combat: 'Cannot fight in human form. As a light dragon her Radiant Breath reaches two tiles and hits hard and true.',
+  likes: 'Bread, questions, being called by her name.', dislikes: 'Kneeling. Being kept safe.',
+  quote: 'Please stop kneeling. I\'d much rather you passed the bread.',
+  design: 'White and gold, the brightest figure in the cast. In dragon form she is the light dragon.',
+};
+
 export const ARCHETYPES: Record<string, Profile> = Object.fromEntries(([
   ['brigand', 'Ashen Brigand', 'Raiders paid in Malrec\'s coin to hunt the prince. Mostly deserters and desperate farmers.', 'Axes. Strong and inaccurate; swords beat them. They carry torches, and they are the only enemies who burn houses.'],
   ['fighter', 'Imperial Axeman', 'Shock infantry recruited from the Empire\'s mining provinces.', 'Heavy axes. They break lance lines.'],
@@ -207,3 +248,5 @@ export function profileFor(u: { id: string; classId: string; lookId?: string }):
 
 export const ALLY_IDS = ['kael', 'lyra', 'brann', 'seren', 'mira', 'tomas', 'rei', 'ilse', 'osric', 'pip', 'sable'];
 export const NPC_IDS = ['gorran', 'varn', 'morwen', 'malrec'];
+/** Companions drawn and playable (sprite browser, challenge mode) but not yet met in the story; kept out of the title-screen codex to avoid spoilers. */
+export const LATER_IDS = ['nerys', 'garrow', 'kestrel', 'aurelie'];
