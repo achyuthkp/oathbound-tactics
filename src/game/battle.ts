@@ -5,7 +5,7 @@ import { canAttackAt, counterWeapon, forecast, rollCombat, type Forecast, type R
 import { HEAL_EXP, combatExp, gainExp } from './progression';
 import { computeReach, manhattan, moveCost, unitAt } from './pathfinding';
 import type { BattleState, House, Pos, Stats, Team, TerrainId, Unit } from './types';
-import { MAX_POTIONS, POTION_HEAL, canTake, giveItem, picksOf, type TradeItem, wear, attackWeapons, clone, goldValue, makeEnemy, makeWeapon, shiftToDragon, shiftToHuman, staffIndex, wdef } from './units';
+import { MAX_POTIONS, POTION_HEAL, canTake, giveItem, picksOf, type TradeItem, wear, attackWeapons, clone, goldValue, makeEnemy, makeWeapon, sellPrice, shiftToDragon, shiftToHuman, staffIndex, wdef } from './units';
 import { WEAPONS } from './data/weapons';
 import { CHARACTERS } from './data/characters';
 import { CLASSES } from './data/classes';
@@ -168,13 +168,7 @@ export function applyAttack(state: BattleState, attId: string, defId: string, we
       events.gold += g;
       s.goldEarned += g;
       s.kills += 1;
-      let keyLine = '';
-      if (u.keys) {
-        const w = u === att ? def : att; // the key goes into the victor's pack
-        if (canTake(w, 'keys')) { w.keys = (w.keys ?? 0) + 1; keyLine = ` ${w.name} took its key.`; }
-        else keyLine = ` ${w.name} has no room for its key; it was left behind.`;
-      }
-      log(s, `${u.name} was defeated. +${g} gold.${keyLine}`);
+      log(s, `${u.name} was defeated. +${g} gold.${recover(s, u, u === att ? def : att)}`);
     } else {
       s.fallenUnits.push(clone(u));
       log(s, `${u.name} has fallen.`);
@@ -182,6 +176,28 @@ export function applyAttack(state: BattleState, attId: string, defId: string, we
   }
   s.units = s.units.filter(u => u.hp > 0);
   return { state: s, strikes, forecast: fc, events };
+}
+
+/**
+ * A defeated enemy's keys, vulneraries (enemies only carry stolen ones) and stolen weapons go into
+ * the victor's pack. A key with no room is lost; anything else with no room is sold, as at houses.
+ */
+function recover(s: BattleState, foe: Unit, w: Unit): string {
+  const got: string[] = [];
+  let lostKeys = 0, sold = 0;
+  for (let i = 0; i < (foe.keys ?? 0); i++) {
+    if (canTake(w, 'keys')) { w.keys = (w.keys ?? 0) + 1; got.push('a key'); } else lostKeys++;
+  }
+  for (let i = 0; i < foe.potions; i++) {
+    if (canTake(w, 'potions')) { w.potions += 1; got.push('a vulnerary'); } else sold += 150;
+  }
+  for (const it of foe.weapons.filter(x => x.stolen)) {
+    if (canTake(w)) { w.weapons.push({ ...it, stolen: undefined }); got.push(`the ${wdef(it).name}`); } else sold += sellPrice(it);
+  }
+  s.goldEarned += sold;
+  return (got.length ? ` ${w.name} took back ${got.join(', ')}.` : '')
+    + (lostKeys ? ` ${w.name} has no room for ${lostKeys === 1 ? 'its key; it was' : 'its keys; they were'} left behind.` : '')
+    + (sold ? ` No room for the rest; it was sold for ${sold} gold.` : '');
 }
 
 export function applyHeal(state: BattleState, healerId: string, targetId: string, rng: RNG):
@@ -351,7 +367,7 @@ export interface StealOption { targetId: string; kind: 'weapon' | 'potion' | 'ke
 /**
  * What a thief can take right now, from adjacent enemies it is at least as fast as: vulneraries,
  * and any weapon that is not a personal one if the thief has room. Taking the weapon out of
- * their hand needs 4 more Spd than the victim and never works on a boss.
+ * their hand needs 4 more Spd than the victim. Bosses are not exempt.
  */
 export function stealOptions(s: BattleState, u: Unit): StealOption[] {
   if (!CLASSES[u.classId]?.steals) return [];
@@ -359,8 +375,8 @@ export function stealOptions(s: BattleState, u: Unit): StealOption[] {
   for (const t of s.units) {
     if (t.team === u.team || manhattan(t, u) !== 1 || t.stats.spd > u.stats.spd) continue;
     if (canTake(u)) {
-      // the weapon in hand is harder: the thief must be 4 faster, and a boss never lets go of theirs
-      const disarm = !t.isBoss && u.stats.spd >= t.stats.spd + 4;
+      // the weapon in hand is harder: the thief must be 4 faster
+      const disarm = u.stats.spd >= t.stats.spd + 4;
       t.weapons.forEach((w, i) => { if (wdef(w).tier < 99 && (i !== t.equipped || disarm)) out.push({ targetId: t.id, kind: 'weapon', index: i, label: `${wdef(w).name} from ${t.name}` }); });
     }
     if ((t.keys ?? 0) > 0 && canTake(u, 'keys')) out.push({ targetId: t.id, kind: 'key', index: 0, label: `Key from ${t.name}` });
@@ -379,7 +395,7 @@ export function applySteal(state: BattleState, unitId: string, opt: StealOption)
   else if (opt.kind === 'potion') { t.potions -= 1; u.potions += 1; reward = `Stole a vulnerary from ${t.name}.`; }
   else {
     const [w] = t.weapons.splice(opt.index, 1);
-    u.weapons.push(w);
+    u.weapons.push(u.team === 'enemy' ? { ...w, stolen: true } : { ...w, stolen: undefined });
     // keep the victim holding the same weapon if they still have it, otherwise whatever is first
     t.equipped = opt.index < t.equipped ? t.equipped - 1 : opt.index === t.equipped ? 0 : t.equipped;
     reward = `Stole ${wdef(w).name} from ${t.name}.`;

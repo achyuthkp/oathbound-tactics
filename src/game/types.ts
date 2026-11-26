@@ -28,7 +28,7 @@ export interface WeaponDef {
   /** Shop tier. 99 = personal / enemy-only, never sold. */
   tier: number;
   heal?: number;
-  /** Triple might against units that move this way: 'armor' knights, 'horse' cavalry, 'flying' pegasi and wyverns. */
+  /** Double might against units that move this way: 'armor' knights, 'horse' cavalry, 'flying' pegasi and wyverns. */
   effective?: MoveType[];
   desc?: string;
 }
@@ -37,6 +37,8 @@ export interface WeaponInstance {
   uid: string; defId: string; forge: number;
   /** Uses left before it breaks. Unset means untouched (see maxUses); personal weapons never wear. */
   uses?: number;
+  /** Taken by an enemy thief; whoever defeats the thief gets it back. */
+  stolen?: boolean;
 }
 
 export interface ClassDef {

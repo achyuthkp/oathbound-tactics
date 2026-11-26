@@ -1,9 +1,10 @@
 import { TERRAIN } from './data/terrain';
-import { canAttackAt, forecast, type Forecast } from './combat';
+import { EFFECTIVE_MULT, canAttackAt, forecast, type Forecast } from './combat';
 import { computeReach, destinations, key, manhattan, pathTo, unitAt, type ReachNode } from './pathfinding';
 import type { BattleState, Pos, Unit } from './types';
 import { attackWeapons, classOf, isFlying, movOf, wdef } from './units';
-import { canTransform, openChests, openHouses, openTools, shutDoors } from './battle';
+import { canTransform, openChests, openHouses, openTools, shutDoors, stealOptions, type StealOption } from './battle';
+import { WEAPONS } from './data/weapons';
 
 export interface AIPlan {
   unitId: string;
@@ -15,6 +16,8 @@ export interface AIPlan {
   loot?: Pos;
   /** A dragonkin spends its action taking dragon form. */
   transform?: boolean;
+  /** A thief ends its move beside a player unit and takes this. */
+  steal?: StealOption;
 }
 
 /** Walk a route as far as this turn's movement allows, stopping on the last free tile. */
@@ -74,7 +77,7 @@ function buildThreats(s: BattleState, unit: Unit): ThreatSource[] {
       for (const wi of attackWeapons(foe)) {
         const inst = foe.weapons[wi];
         const w = wdef(inst);
-        const might = (w.might + (inst.forge ?? 0)) * (w.effective?.includes(moveType) ? 3 : 1);
+        const might = (w.might + (inst.forge ?? 0)) * (w.effective?.includes(moveType) ? EFFECTIVE_MULT : 1);
         dmg = Math.max(dmg, foe.stats.str + might);
         for (let y = Math.max(0, node.y - w.maxRange); y <= Math.min(s.height - 1, node.y + w.maxRange); y++) {
           for (let x = Math.max(0, node.x - w.maxRange); x <= Math.min(s.width - 1, node.x + w.maxRange); x++) {
@@ -147,6 +150,21 @@ export function planEnemy(s: BattleState, unit: Unit): AIPlan {
     const doors = shutDoors(s);
     const by = planGoTo(s, unit, doors.flatMap(d => [[0, -1], [1, 0], [0, 1], [-1, 0]].map(([dx, dy]) => ({ x: d.x + dx, y: d.y + dy }))));
     if (by) return { unitId: unit.id, path: by.path, loot: by.arrived && doors.find(d => manhattan(d, by.arrived!) === 1) };
+  }
+  // a thief would rather rob than fight: the most valuable thing it can walk up to and take
+  // ponytail: it doesn't flee with the loot afterwards; add a retreat plan if thieves die too easily
+  if (classOf(unit).steals && (unit.ai === 'aggressive' || unit.ai === 'loot')) {
+    const reach = computeReach(s, unit);
+    const worth = (o: StealOption) => o.kind === 'key' ? 500 : o.kind === 'potion' ? 150
+      : WEAPONS[s.units.find(t => t.id === o.targetId)!.weapons[o.index].defId].price;
+    let best: { to: Pos; opt: StealOption; v: number } | null = null;
+    for (const d of destinations(s, unit, reach)) {
+      for (const opt of stealOptions(s, { ...unit, x: d.x, y: d.y })) {
+        const v = worth(opt);
+        if (!best || v > best.v) best = { to: d, opt, v };
+      }
+    }
+    if (best) return { unitId: unit.id, path: pathTo(reach, best.to.x, best.to.y), steal: best.opt };
   }
   // a dragonkin with a stone left changes shape as soon as a fight is close
   if (canTransform(unit) && s.units.some(t => t.team !== unit.team && manhattan(t, unit) <= movOf(unit))) {

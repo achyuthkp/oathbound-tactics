@@ -9,6 +9,7 @@ export type RNG = () => number;
 export const TRIANGLE_HIT = 15;
 export const TRIANGLE_DMG = 1;
 export const CRIT_MULT = 3;
+export const EFFECTIVE_MULT = 2;
 export const DOUBLE_THRESHOLD = 4;
 
 /** Sword beats Axe, Axe beats Lance, Lance beats Sword. Bows and staves sit outside the triangle. */
@@ -92,7 +93,7 @@ function side(s: BattleState, u: Unit, uPos: Pos, idx: number | null, foe: Unit,
   const w = wdef(inst);
   const tri = triangle(w.type, foeHeld?.type);
   const effective = !!w.effective?.includes(classOf(foe).moveType);
-  const might = (w.might + inst.forge) * (effective ? 3 : 1);
+  const might = (w.might + inst.forge) * (effective ? EFFECTIVE_MULT : 1);
   const tb = terrainBonus(s, foe, foePos);
   const foeBond = bondBonus(s, foe, foePos);
   const dmg = Math.max(0, u.stats.str + might + tri * TRIANGLE_DMG - (foe.stats.def + tb.def));

@@ -141,7 +141,7 @@ receiving browser's local storage; keep the JSON file if you may need it again.
 Sword beats axe, axe beats lance, lance beats sword. Advantage grants +15 hit and +1 damage;
 disadvantage the reverse. Swords, lances and axes only reach adjacent tiles.
 
-**Bows** strike at range 1–2, sit outside the triangle and deal triple might to flying units.
+**Bows** strike at range 1–2, sit outside the triangle and deal double might to flying units.
 **Staves** heal adjacent allies.
 
 ### Combat math
@@ -224,8 +224,13 @@ Fast, frail sword users (Pip joins in chapter 2; the Empire has its own cutpurse
 to an enemy that is not faster, a thief can **Steal** a vulnerary or any weapon that is not a
 personal one, if there is room in the thief's pack.
 
-Taking the weapon out of an enemy's hand needs 4 more Spd than the victim and never works on a
-boss; a disarmed enemy cannot attack. A thief can also steal a key.
+Taking the weapon out of an enemy's hand needs 4 more Spd than the victim, bosses included; a
+disarmed enemy cannot attack. A thief can also steal a key.
+
+Enemy thieves steal too: an Imperial thief walks up to whoever carries the most valuable thing it
+can take and robs them instead of fighting. Defeat that thief and the victor takes back every
+stolen weapon and vulnerary, along with any keys it carried. With no room in the victor's pack, a
+key is lost and anything else is sold, as at houses.
 
 ### Locks: chests, doors and gates
 
@@ -252,14 +257,15 @@ keys and its dragonstones.
 
 A unit standing next to an ally gets **Trade** in the action menu: pick an item on either side to
 hand it across, as long as the receiver has room. Personal weapons cannot be traded. Trading does
-not use the unit's action, but once something has changed hands the move can no longer be taken
-back. At camp, the armory has a **Give items to** picker that does the same between any two
+not use the unit's action, but once something has changed hands the move is committed: the unit
+cannot walk again or take the move back, though it can still attack, heal or wait. At camp, the armory has a **Give items to** picker that does the same between any two
 companions.
 
 ### Effective weapons
 
-Some weapons deal triple might against one kind of unit, and the forecast marks the attack
-*Effective*:
+Some weapons deal double might against one kind of unit, and the forecast marks the attack
+*Effective*. (A critical hit is separate: it triples the damage, and Killing and Killer weapons
+have +30 crit.) The pairings:
 
 - Bows against flying units
 - The **Rapier** (and Kael's Valen Rapier) and the **Hammer** against armoured units

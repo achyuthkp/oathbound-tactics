@@ -7,11 +7,12 @@ import { CHAPTERS } from '../src/game/data/chapters';
 import { TERRAIN, type TerrainDef } from '../src/game/data/terrain';
 import { CLASSES } from '../src/game/data/classes';
 import { WEAPONS } from '../src/game/data/weapons';
-import { PLAYER_TEMPLATES } from '../src/game/data/characters';
+import { PLAYER_TEMPLATES, elementOf } from '../src/game/data/characters';
 import { planEnemy } from '../src/game/ai';
 import { forecast } from '../src/game/combat';
 import { manhattan } from '../src/game/pathfinding';
-import { applyAttack, applyBurn, applyHeal, applyOpen, applyTransform, createBattle, endEnemyPhase, endPlayerPhase, healTargets, markDone, outcome, parseMap, toResult } from '../src/game/battle';
+import { applyAttack, applyBurn, applyHeal, applyOpen, applyTransform, createBattle, endEnemyPhase, endPlayerPhase, applySteal, healTargets, markDone, outcome, parseMap, shutDoors, stealOptions, toResult } from '../src/game/battle';
+import { makeEnemy } from '../src/game/units';
 import { addRecruits, enterCamp, mergeBattle, newCampaign } from '../src/game/campaign';
 import { gainExp } from '../src/game/progression';
 import type { BattleState, Campaign } from '../src/game/types';
@@ -99,6 +100,57 @@ CHAPTERS.forEach((ch, ci) => {
       }
     }
   }
+}
+
+// ---- rules: effective weapons double might; a thief can disarm a boss
+{
+  const s = createBattle(0, newCampaign('casual').roster, {});
+  const knight = makeEnemy({ classId: 'knight', level: 1, weapons: ['iron_lance'], x: 1, y: 0, isBoss: true }, 'k');
+  const thief = { ...makeEnemy({ classId: 'thief', level: 1, weapons: ['rapier', 'iron_sword'], x: 0, y: 0 }, 't'), team: 'player' as const };
+  thief.stats = { ...thief.stats, str: 30, spd: knight.stats.spd + 4 };
+  s.units = [thief, knight];
+  const rapier = forecast(s, thief, knight, 0).att.dmg, plain = forecast(s, thief, knight, 1).att.dmg;
+  if (rapier - plain !== WEAPONS.rapier.might) fail(`rules: effective Rapier deals ${rapier} vs Iron Sword ${plain}; expected +${WEAPONS.rapier.might} (double might)`);
+  if (!stealOptions(s, thief).some(o => o.targetId === 'k' && o.kind === 'weapon' && o.index === knight.equipped)) fail('rules: a thief 4 faster could not take the weapon from a boss');
+}
+
+// ---- rules: an enemy thief steals the best thing in reach; defeating it gets everything back
+{
+  let s = createBattle(0, newCampaign('casual').roster, {});
+  const crook = makeEnemy({ classId: 'thief', level: 1, weapons: ['dagger'], x: 2, y: 0 }, 'c');
+  const mark = { ...makeEnemy({ classId: 'fighter', level: 1, weapons: ['iron_axe', 'silver_sword'], x: 0, y: 0 }, 'm'), team: 'player' as const, potions: 1 };
+  mark.stats = { ...mark.stats, spd: 0, str: 40, skl: 40 };
+  for (const y of [0, 1]) for (const x of [0, 1, 2, 3]) s.map[y][x] = 'plains';
+  s.units = [mark, crook];
+  const plan = planEnemy(s, crook);
+  if (plan.steal?.kind !== 'weapon' || mark.weapons[plan.steal.index].defId !== 'silver_sword') fail(`rules: enemy thief should go for the Silver Sword, planned ${JSON.stringify(plan.steal)}`);
+  else {
+    const to = plan.path[plan.path.length - 1];
+    s.units = s.units.map(u => u.id === 'c' ? { ...u, x: to.x, y: to.y } : u);
+    s = applySteal(s, 'c', plan.steal)!.state;
+    s = applySteal(s, 'c', stealOptions(s, s.units.find(u => u.id === 'c')!).find(o => o.kind === 'potion')!)!.state;
+    if (s.units.find(u => u.id === 'm')!.weapons.some(w => w.defId === 'silver_sword')) fail('rules: the Silver Sword was not taken');
+    s.units.find(u => u.id === 'c')!.hp = 1;
+    s = applyAttack(s, 'm', 'c', 0, () => 0).state;
+    const back = s.units.find(u => u.id === 'm')!;
+    if (s.units.some(u => u.id === 'c')) fail('rules: the thief survived the retrieval check');
+    else if (!back.weapons.some(w => w.defId === 'silver_sword' && !w.stolen) || back.potions !== 1) fail('rules: defeating the thief did not return the stolen sword and vulnerary');
+  }
+}
+
+// ---- data: every dragon breath names an element, so the dragon is drawn in its colours
+for (const w of Object.values(WEAPONS)) if (w.type === 'breath' && !elementOf([{ defId: w.id }])) fail(`data: breath ${w.id} has no element in ELEMENTS`);
+
+// ---- rules: a key opens a door into an open doorway and is spent
+{
+  const ci = CHAPTERS.findIndex(ch => parseMap(ch.map).some(r => r.includes('door')));
+  const s = createBattle(ci, newCampaign('casual').roster, {});
+  const door = shutDoors(s)[0];
+  const lord = { ...makeEnemy({ classId: 'fighter', level: 1, weapons: ['iron_axe'], x: 0, y: 0 }, 'p'), team: 'player' as const };
+  const spot = [[0, -1], [1, 0], [0, 1], [-1, 0]].map(([dx, dy]) => ({ x: door.x + dx, y: door.y + dy })).find(p => !!s.map[p.y]?.[p.x] && Number.isFinite(TERRAIN[s.map[p.y][p.x]].cost.foot))!;
+  s.units = [lord]; lord.x = spot.x; lord.y = spot.y; lord.keys = 1;
+  const r = applyOpen(s, lord.id, door, 'key');
+  if (!r || r.state.map[door.y][door.x] !== 'doorway' || (r.state.units[0].keys ?? 0) !== 0) fail('rules: a key did not open the door, or was not spent');
 }
 
 // ---- documentation drift: canonical tables live in docs/manual.md
@@ -245,6 +297,7 @@ function playerTurn(s: BattleState): BattleState {
     const to = plan.path[plan.path.length - 1];
     s = { ...s, units: s.units.map(x => x.id === id ? { ...x, x: to.x, y: to.y } : x) };
     if (plan.attack) s = applyAttack(s, id, plan.attack.targetId, plan.attack.weaponIdx, Math.random).state;
+    if (plan.steal) s = applySteal(s, id, plan.steal)?.state ?? s;
     if (s.units.some(x => x.id === id)) s = markDone(s, id);
     if (outcome(s) !== 'ongoing') return s;
   }
@@ -260,6 +313,7 @@ function enemyTurn(s: BattleState): BattleState {
     s = { ...s, units: s.units.map(x => x.id === id ? { ...x, x: to.x, y: to.y } : x) };
     if (plan.raid) { const b = applyBurn(s, id); if (!b) fail('raid plan with nothing to burn'); else s = b; }
     if (plan.loot) { const o = applyOpen(s, id, plan.loot, 'pick'); if (!o) fail('loot plan with nothing to open'); else s = o.state; }
+    if (plan.steal) { const r = applySteal(s, id, plan.steal); if (!r) fail('steal plan that cannot steal'); else s = r.state; }
     if (plan.transform) { const t = applyTransform(s, id); if (!t) fail('transform plan that cannot transform'); else s = t; }
     if (plan.attack) s = applyAttack(s, id, plan.attack.targetId, plan.attack.weaponIdx, Math.random).state;
     if (s.units.some(x => x.id === id)) s = markDone(s, id);

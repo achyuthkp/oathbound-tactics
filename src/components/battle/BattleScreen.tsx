@@ -83,6 +83,8 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
   const [stealFor, setStealFor] = useState<string | null>(null);
   /** The unit trading and the adjacent ally it is trading with. */
   const [tradeFor, setTradeFor] = useState<{ a: string; b: string } | null>(null);
+  /** A unit that has traded this action: its move is committed, so Cancel cannot send it walking again. */
+  const [committed, setCommitted] = useState<string | null>(null);
   const [floats, setFloats] = useState<Float[]>([]);
   const [levelUp, setLevelUp] = useState<LevelUpView | null>(null);
   const [danger, setDanger] = useState(false);
@@ -292,7 +294,7 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
       const unit = find(id);
       if (!unit) continue;
       const plan = planEnemy(stateRef.current, unit);
-      const acts = plan.path.length > 1 || !!plan.attack || !!plan.raid || !!plan.loot || !!plan.transform;
+      const acts = plan.path.length > 1 || !!plan.attack || !!plan.raid || !!plan.loot || !!plan.transform || !!plan.steal;
       if (plan.path.length > 1) { await animateMove(id, plan.path); await sleep(110); }
       if (plan.attack) await doCombat(id, plan.attack.targetId, plan.attack.weaponIdx);
       if (plan.transform) {
@@ -302,6 +304,10 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
       if (plan.loot) {
         const o = applyOpen(stateRef.current, id, plan.loot, 'pick');
         if (o) { setState(o.state); reveal(plan.loot); addFloat(plan.loot, o.chest ? 'Chest looted!' : 'Lock picked!', 'dmg'); await sleep(900); }
+      }
+      if (plan.steal) {
+        const r = applySteal(stateRef.current, id, plan.steal);
+        if (r) { setState(r.state); reveal(unit); addFloat(unit, 'Stolen!', 'dmg'); await sleep(900); }
       }
       if (plan.raid) {
         const burnt = applyBurn(stateRef.current, id);
@@ -352,11 +358,13 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
     const t = applyTrade(stateRef.current, from, to, item);
     if (!t) return;
     setState(t);
+    if (mode.kind === 'menu') setCommitted(mode.unitId); // the acting unit, whichever way the item went
     if (mode.kind === 'menu') { const u = t.units.find(x => x.id === mode.unitId); if (u) setMode({ ...mode, from: { x: u.x, y: u.y } }); }
   }
 
   async function finishAction(unitId: string) {
     if (find(unitId)) setState(markDone(stateRef.current, unitId));
+    setCommitted(null);
     setMode({ kind: 'idle' });
     if (await checkEnd()) return;
     setBusy(false);
@@ -449,6 +457,7 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
     if (busy) return;
     if (mode.kind === 'selected') setMode({ kind: 'idle' });
     else if (mode.kind === 'menu') {
+      if (committed === mode.unitId) return; // traded: the unit stays put and must act or Wait
       const s = stateRef.current;
       setState({ ...s, units: s.units.map(u => (u.id === mode.unitId ? { ...u, x: mode.from.x, y: mode.from.y } : u)) });
       setMode({ kind: 'selected', unitId: mode.unitId });
