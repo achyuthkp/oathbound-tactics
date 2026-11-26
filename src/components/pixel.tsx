@@ -100,15 +100,22 @@ export class Canvas {
     this.over(l);
   }
   over(o: Canvas) { o.px.forEach((c, i) => { if (c) this.px[i] = c; }); }
-  /** A copy turned `deg` counter-clockwise about (cx, cy), then shifted by (dx, dy). Nearest-pixel, so 90° is lossless. */
+  /**
+   * A copy turned `deg` counter-clockwise about (cx, cy), then shifted by (dx, dy). Right angles are
+   * nearest-pixel and lossless; any other angle samples a Scale2x×3 copy (RotSprite) so edges and
+   * outlines stay smooth instead of stair-stepping.
+   */
   rotated(deg: number, cx: number, cy: number, dx = 0, dy = 0): Canvas {
     const { W, H, OX, OY } = this, o = this.fresh();
     const cos = Math.cos((deg * Math.PI) / 180), sin = Math.sin((deg * Math.PI) / 180);
+    const k = deg % 90 === 0 ? 1 : 8;
+    let src = this.px, w = W, h = H;
+    for (let s = 1; s < k; s *= 2) [src, w, h] = [scale2x(src, w, h), w * 2, h * 2];
     for (let y = -OY; y < H - OY; y++) {
       for (let x = -OX; x < W - OX; x++) {
         const rx = x - dx - cx, ry = y - dy - cy;
-        const sx = Math.round(cx + rx * cos - ry * sin) + OX, sy = Math.round(cy + rx * sin + ry * cos) + OY;
-        const c = sx >= 0 && sx < W && sy >= 0 && sy < H ? this.px[sy * W + sx] : undefined;
+        const sx = Math.floor((cx + rx * cos - ry * sin + OX + 0.5) * k), sy = Math.floor((cy + rx * sin + ry * cos + OY + 0.5) * k);
+        const c = sx >= 0 && sx < w && sy >= 0 && sy < h ? src[sy * w + sx] : undefined;
         if (c) o.set(x, y, c);
       }
     }
@@ -129,6 +136,24 @@ export class Canvas {
     }
     return [...out].map(([fill, d]) => ({ fill, d }));
   }
+}
+
+/** Scale2x (EPX): doubles a pixel grid, rounding diagonal steps instead of making blocks. */
+function scale2x(px: (string | undefined)[], w: number, h: number): (string | undefined)[] {
+  const out = new Array<string | undefined>(w * h * 4), W2 = w * 2;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const e = px[y * w + x];
+      const b = y > 0 ? px[(y - 1) * w + x] : e, hh = y < h - 1 ? px[(y + 1) * w + x] : e;
+      const d = x > 0 ? px[y * w + x - 1] : e, f = x < w - 1 ? px[y * w + x + 1] : e;
+      const edge = b !== hh && d !== f, i = y * 2 * W2 + x * 2;
+      out[i] = edge && d === b ? d : e;
+      out[i + 1] = edge && b === f ? f : e;
+      out[i + W2] = edge && d === hh ? d : e;
+      out[i + W2 + 1] = edge && hh === f ? f : e;
+    }
+  }
+  return out;
 }
 
 export function Px({ paths }: { paths: PxPath[] }) {

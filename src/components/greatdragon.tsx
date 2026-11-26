@@ -69,6 +69,9 @@ interface Fr {
   down?: number;
 }
 
+/** The downstroke, fanned out behind and below the body: the one-tile pose would hide under it. */
+const SWEPT: BatWing = { elbow: [-8, -1], wrist: [-15, 5], tips: [[-29, 1], [-28, 12], [-19, 14]], webs: [[-23, 6], [-21, 11], [-13, 10]], flank: [-4, 5] };
+
 function wing(l: Canvas, w: BatWing, sx: number, sy: number, k: number, bone: string, mem: string, rib: string) {
   const at = ([x, y]: V): V => [Math.round(sx + x * k), Math.round(sy + y * k)];
   const tips = w.tips.map(at), webs = w.webs.map(at);
@@ -101,7 +104,7 @@ function drawFrame(f: Fr): Canvas {
   const bx = 40 + dx, by = 72 + dy;
   const head: V = down >= 2 ? [68, 83] : f.head ?? [66, 28];
   const jaw = down >= 2 ? 1 : f.jaw ?? 0;
-  const wp = BAT_WINGS[down ? 2 : f.wing ?? 1];
+  const wp = down || f.wing === 2 ? SWEPT : BAT_WINGS[f.wing ?? 1];
   const tail = down ? 0 : f.tail ?? 0;
   const standing = down < 2;
 
@@ -132,8 +135,8 @@ function drawFrame(f: Fr): Canvas {
 
   if (standing) {
     c.layer(l => {
-      l.ellipse(bx - 8, by + 8, 8, 9, C.far); l.line(bx - 10, by + 14, bx - 12, 94, C.far, 5); foot(l, bx - 15, C.far);
-      l.line(bx + 20, by + 4, bx + 23, 94, C.far, 5); foot(l, bx + 21, C.far);
+      l.ellipse(bx - 8, by + 8, 8, 9, C.far); l.line(bx - 6, by + 14, bx - 17, 90, C.far, 5); l.line(bx - 17, 90, bx - 11, 94, C.far, 4); foot(l, bx - 15, C.far);
+      l.line(bx + 20, by + 4, bx + 16, by + 14, C.far, 5); l.line(bx + 16, by + 14, bx + 24, 94, C.far, 4); foot(l, bx + 21, C.far);
     });
   }
 
@@ -180,9 +183,9 @@ function drawFrame(f: Fr): Canvas {
   c.layer(l => {
     if (!standing) { foot(l, bx - 26, C.base); foot(l, bx + 12, C.base); return; }
     l.ellipse(bx - 14, by + 8, 9, 10, C.lo); l.ellipse(bx - 15, by + 7, 8, 9, C.base);
-    l.line(bx - 18, by + 14, bx - 21, 94, C.base, 5); foot(l, bx - 25, C.base);
+    l.line(bx - 14, by + 14, bx - 28, 90, C.base, 6); l.line(bx - 28, 90, bx - 20, 94, C.base, 5); foot(l, bx - 25, C.base);
     const sh: V = [bx + 12, by + 3];
-    if (!f.claw) { l.line(sh[0], sh[1], bx + 15, 87, C.base, 7); l.line(bx + 16, 87, bx + 15, 94, C.base, 5); foot(l, bx + 13, C.base); }
+    if (!f.claw) { l.line(sh[0], sh[1], bx + 6, by + 14, C.base, 7); l.line(bx + 7, by + 15, bx + 17, 94, C.base, 5); foot(l, bx + 13, C.base); }
     else {
       const [el, paw]: V[] = f.claw === 1 ? [[bx + 24, by - 3], [bx + 34, by - 16]] : [[bx + 26, by + 8], [bx + 40, by + 18]];
       l.line(sh[0], sh[1], el[0], el[1], C.base, 7); l.line(el[0], el[1], paw[0], paw[1], C.base, 5);

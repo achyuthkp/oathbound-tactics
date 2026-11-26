@@ -453,13 +453,13 @@ function mountColours(build: Build) {
 
 /** A mount collapsed on its side, head to the right, lying on the ground row. `ox` = rump. */
 function drawDeadMount(c: Canvas, build: Build, ox: number) {
-  const { winged, wyvern, coat, mane, far, head, headArt, wingPal, bat } = mountColours(build);
+  const { winged, wyvern, coat, mane, far, head, headArt, wingPal, bat, element } = mountColours(build);
   c.layer(l => {
     l.line(ox + 15, 30, ox + 22, 30, far, 2); l.rect(ox + 24, 30, 1, 2, HOOF);
     l.line(ox + 1, 30, ox - 4, 30, far, 2); l.rect(ox - 5, 30, 1, 2, HOOF);
   });
   // one limp wing still raised
-  if (winged) c.layer(l => (wyvern ? drawBatWing(l, BAT_WINGS[0], ox + 9, 25, bat[0][0], bat[0][1]) : l.stamp(WINGS[0], ox - 4, 11, wingPal)));
+  if (winged && element !== 'earth') c.layer(l => (wyvern && element !== 'light' ? drawBatWing(l, BAT_WINGS[0], ox + 9, 25, bat[0][0], bat[0][1]) : l.stamp(WINGS[0], ox - 4, 11, wingPal)));
   c.layer(l => {
     l.line(ox + 2, 25, ox - 2, 29, mane, 2);
     l.rect(ox + 5, 22, 9, 1, coat);
@@ -740,15 +740,16 @@ function drawFallen(look: Look, build: Build, weapon: WeaponType | undefined, st
     for (const [x, y] of [[14, 18], [17, 16], [19, 19], [12, 15], [20, 22]]) out.set(x - (mounted ? 4 : 0), y - (mounted ? 6 : 0), BLOOD);
     return out;
   }
-  const w = (mounted ? 24 : 0) + [10, 18, 26][stage - 2];
+  const w = (mounted ? 8 : 0) + [10, 18, 26][stage - 2];
   out.rect(15 - w / 2, 31, w, 1, BLOOD);
   out.rect(14 - w / 2, 32, w + 2, 1, BLOOD);
   out.rect(16 - w / 2, 33, w - 2, 1, BLOOD_D);
-  if (mounted) drawDeadMount(out, build, 15);
-  const dx = mounted ? -14 : 0; // the rider is thrown clear, behind the mount
-  out.over(body.rotated(90, 15, 31, 12 + dx, -7)); // laid on their back
-  for (const [x, y] of [[16, 22], [17, 23], [15, 24], [18, 21], [16, 25], [15, 26]]) out.set(x + dx, y, BLOOD);
-  out.set(17 + dx, 22, BLOOD_D);
+  if (mounted) drawDeadMount(out, build, 5);
+  // a rider lies slumped across the fallen mount, so the two fit in one tile
+  const [dx, dy] = mounted ? [-2, -8] : [0, 0];
+  out.over(body.rotated(90, 15, 31, 12 + dx, dy - 7)); // laid on their back
+  for (const [x, y] of [[16, 22], [17, 23], [15, 24], [18, 21], [16, 25], [15, 26]]) out.set(x + dx, y + dy, BLOOD);
+  out.set(17 + dx, 22 + dy, BLOOD_D);
   if (stage > 2) for (const [x, y] of [[2, 32], [29, 32], [27, 30]]) out.set(x + dx, y, BLOOD);
   if (stage > 3) for (const [x, y] of [[-1, 32], [32, 32], [4, 30], [25, 33], [30, 30]]) out.set(x + dx, y, BLOOD);
   return out;
