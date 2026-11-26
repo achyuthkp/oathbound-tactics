@@ -13,6 +13,7 @@ import { forecast } from '../src/game/combat';
 import { manhattan } from '../src/game/pathfinding';
 import { applyAttack, applyBurn, applyHeal, applyOpen, applyTransform, createBattle, endEnemyPhase, endPlayerPhase, applySteal, healTargets, markDone, outcome, parseMap, shutDoors, stealOptions, toResult } from '../src/game/battle';
 import { makeEnemy } from '../src/game/units';
+import { defaultEnemy, exportChallenge, newChallenge, parseChallenge, playerUnits, problems, resize, setTile, toChapter, type ChallengeMap } from '../src/game/challenge';
 import { addRecruits, enterCamp, mergeBattle, newCampaign } from '../src/game/campaign';
 import { gainExp } from '../src/game/progression';
 import type { BattleState, Campaign } from '../src/game/types';
@@ -339,6 +340,53 @@ function runCampaign(): string {
     for (let k = 0; k < 2; k++) { const i = Math.floor(Math.random() * c.roster.length); c.roster[i] = gainExp(c.roster[i], 50, Math.random).unit; }
   }
   return notes.join(' ') + ' | lv ' + c.roster.map(u => `${u.id}${u.level}`).join(',');
+}
+
+// ---- challenge mode: a default map is playable, rules hold, files round-trip
+{
+  let m = newChallenge();
+  if (problems(m).length) fail(`challenge: the default map is not playable: ${problems(m).join('; ')}`);
+  const ch = toChapter(m);
+  let s = createBattle(0, playerUnits(m), {}, ch);
+  if (s.units.filter(u => u.team === 'player').length !== m.players.length) fail('challenge: not every placed unit was deployed');
+  if (s.units.find(u => u.isLord)?.name !== 'Kael') fail('challenge: the leader should be the lord');
+  if (outcome(s) !== 'ongoing') fail('challenge: a fresh battle is not ongoing');
+  if (outcome({ ...s, units: s.units.filter(u => !u.isLord) }) !== 'defeat') fail('challenge: losing the leader should lose the map');
+  const all = createBattle(0, playerUnits({ ...m, loseRule: 'all' }), {}, toChapter({ ...m, loseRule: 'all' }));
+  if (all.units.some(u => u.isLord)) fail('challenge: no unit should be a leader under the whole-army rule');
+  if (outcome(all) !== 'ongoing' || outcome({ ...all, units: all.units.filter(u => u.team === 'enemy') }) !== 'defeat') fail('challenge: whole-army rule should lose only when everyone falls');
+
+  // a reinforcement arrives on its turn, not before
+  m = { ...m, enemies: [...m.enemies, { ...defaultEnemy(13, 8), turn: 3 }] };
+  s = createBattle(0, playerUnits(m), {}, toChapter(m));
+  const foes = () => s.units.filter(u => u.team === 'enemy').length;
+  if (foes() !== 2) fail(`challenge: ${foes()} enemies on turn 1, expected 2`);
+  s = endEnemyPhase(endPlayerPhase(s).state).state; s = endEnemyPhase(endPlayerPhase(s).state).state;
+  if (s.turn !== 3 || foes() !== 3) fail(`challenge: the turn-3 reinforcement did not arrive (turn ${s.turn}, ${foes()} enemies)`);
+
+  // problems are caught
+  const bad = (mm: ChallengeMap, needle: string) => { if (!problems(mm).some(p => p.includes(needle))) fail(`challenge: expected a problem mentioning "${needle}"`); };
+  bad({ ...m, players: m.players.map(p => ({ ...p, leader: false })) }, 'leader');
+  bad({ ...m, objective: 'seize' }, 'throne');
+  bad({ ...m, objective: 'boss' }, 'boss');
+  bad(setTile(m, m.players[0].x, m.players[0].y, 'water'), 'cannot enter');
+  bad({ ...m, players: [...m.players, { ...m.players[0], y: 0 }] }, 'twice');
+  if (problems({ ...setTile(m, 15, 0, 'throne'), objective: 'seize' }).length) fail('challenge: a seize map with a throne should be playable');
+  const withHouse = setTile(m, 5, 5, 'house');
+  if (withHouse.houses.length !== 1 || setTile(withHouse, 5, 5, 'plains').houses.length) fail('challenge: painting a house should add its contents, painting over it remove them');
+  if (resize(m, 8, 8).enemies.some(e => e.x >= 8 || e.y >= 8)) fail('challenge: shrinking the map should drop units outside it');
+
+  // export and import give back the same map
+  const back = parseChallenge(exportChallenge({ ...m, best: 4 }));
+  if (!back.ok || JSON.stringify({ ...back.map }) !== JSON.stringify({ ...m, best: undefined })) fail('challenge: exported map did not import back unchanged');
+  if (parseChallenge('{"version":1,"tiles":["..Z"]}').ok) fail('challenge: a map with unknown tiles should be refused');
+  if (parseChallenge('not json').ok) fail('challenge: a non-JSON file should be refused');
+
+  // the AI can play a challenge to the end without breaking anything
+  s = createBattle(0, playerUnits(m), {}, toChapter(m));
+  let o = outcome(s);
+  while (o === 'ongoing' && s.turn <= 30) { s = playerTurn(s); o = outcome(s); if (o !== 'ongoing') break; s = enemyTurn(s); o = outcome(s); }
+  console.log(`challenge auto-play: ${o} on turn ${s.turn}`);
 }
 
 const results: string[] = [];

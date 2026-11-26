@@ -15,6 +15,7 @@ and workarounds, see [troubleshooting.md](troubleshooting.md) and
 - [Saving and loading](#saving-and-loading)
 - [Rules](#rules)
 - [The rest area](#the-rest-area)
+- [Challenge mode and the map builder](#challenge-mode-and-the-map-builder)
 - [Bonds and romance](#bonds-and-romance)
 - [Characters, art, and animation](#characters-art-and-animation)
 - [Further reading](#further-reading)
@@ -339,6 +340,52 @@ field.
 
 If Kael falls, the battle is lost and you can retry the chapter. In Classic mode other fallen
 allies are gone for good; in Casual they return after the battle.
+
+## Challenge mode and the map builder
+
+**Challenge mode** (on the title screen) holds maps you build yourself. They have nothing to do
+with the story: no roster, gold or experience carries in or out. Each map is just a puzzle.
+
+From the challenge list you can start a **New map**, **Play**, **Edit**, **Export** or
+**Delete** a map, or **Import map file**. Maps are saved in this browser as you edit them.
+Export writes a `.json` file anyone can import into their own copy of Oathbound. Your best
+(fewest turns) clear is kept on your browser and is not part of the exported file.
+
+### Building a map
+
+The builder has three columns: tools on the left, the map in the middle, and settings for the
+map or the selected thing on the right.
+
+- **Terrain**: pick a tile and click or drag to paint it. Every terrain from the story maps is
+  available, including thrones, houses, chests, locked doors and gates.
+- **Your unit** and **Enemy**: click an empty tile to place one. The first units you place are
+  the story characters not yet on the map, at their usual level and kit. After that, each new
+  unit copies the last one you edited on that side, so a row of archers takes one edit and a few
+  clicks.
+- **Select**: click a unit, house or chest to edit it. **Remove** deletes the unit you click.
+
+A new map starts as 16 by 10 plains with Kael (the leader) and Lyra against two soldiers, so it
+is playable before you change anything. Every option below has a default.
+
+| Setting | Options | Default |
+| --- | --- | --- |
+| Size | 6 to 40 wide, 6 to 30 tall | 16 by 10 |
+| Objective | defeat all enemies, defeat the boss, survive N turns, seize the throne | defeat all enemies |
+| You lose when | your leader falls, or your whole army falls | your leader falls |
+| Your unit | a story character at a chosen level, or a generic unit of any class | the next unused character |
+| Unit items | weapons (up to 5), vulneraries, keys, lockpicks (thieves), dragonstones (dragonkin) | the class's usual kit |
+| Enemy | class, level, weapons, behaviour, boss, carries a key, vulneraries, name | Lv 1 soldier with an iron lance |
+| Arrives on turn | 1 means on the map at the start; later turns make it a reinforcement | 1 |
+| Stat bonus | extra HP, Str, Skl, Spd, Lck and Def for one unit | none |
+| House or chest | gold, a weapon or a vulnerary, and what it says | 500 gold (house), 1,000 gold (chest) |
+
+A story character raised above their usual level gains each stat's average growth per level.
+Reinforcements show faded with their arrival turn; up to 10 enemies may be on the map at the
+start, and any number can arrive later.
+
+**Test play** checks the map first and lists anything that stops it from being played: no
+leader, a unit standing on terrain it cannot enter, a seize objective with no throne, and so on.
+Challenge battles use every normal rule but cannot be saved mid-battle.
 
 ## The rest area
 

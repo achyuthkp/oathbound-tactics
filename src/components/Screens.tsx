@@ -6,7 +6,7 @@ import { Portrait, WeaponIcon } from './art';
 import { TriangleLegend } from './battle/parts';
 import { Codex } from './Profile';
 
-export function TitleScreen({ canContinue, onNew, onContinue, onLoad }: { canContinue: boolean; onNew: (m: GameMode) => void; onContinue: () => void; onLoad: () => void }) {
+export function TitleScreen({ canContinue, onNew, onContinue, onLoad, onChallenge }: { canContinue: boolean; onNew: (m: GameMode) => void; onContinue: () => void; onLoad: () => void; onChallenge: () => void }) {
   const [panel, setPanel] = useState<'none' | 'mode' | 'help' | 'codex'>('none');
   return (
     <div className="title-screen">
@@ -19,6 +19,7 @@ export function TitleScreen({ canContinue, onNew, onContinue, onLoad }: { canCon
         {canContinue && <button className="primary" onClick={onContinue}>Continue</button>}
         <button className={canContinue ? '' : 'primary'} onClick={() => setPanel('mode')}>New game</button>
         {canContinue && <button onClick={onLoad}>Load game</button>}
+        <button onClick={onChallenge}>Challenge mode</button>
         <button className="ghost" onClick={() => setPanel('codex')}>Characters</button>
         <button className="ghost" onClick={() => setPanel('help')}>How to play</button>
         <button className="ghost" onClick={() => { window.location.hash = '#sprites'; }}>Sprites</button>

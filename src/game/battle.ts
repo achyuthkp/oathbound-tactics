@@ -4,7 +4,7 @@ import { BATTLE_BOND, SUPPORT_KEYS, pairKey } from './data/supports';
 import { canAttackAt, counterWeapon, forecast, rollCombat, type Forecast, type RNG, type Strike } from './combat';
 import { HEAL_EXP, combatExp, gainExp } from './progression';
 import { computeReach, manhattan, moveCost, unitAt } from './pathfinding';
-import type { BattleState, House, Pos, Stats, Team, TerrainId, Unit } from './types';
+import type { BattleState, Chapter, House, Pos, Stats, Team, TerrainId, Unit } from './types';
 import { MAX_POTIONS, POTION_HEAL, canTake, giveItem, picksOf, type TradeItem, wear, attackWeapons, clone, goldValue, makeEnemy, makeWeapon, sellPrice, shiftToDragon, shiftToHuman, staffIndex, wdef } from './units';
 import { WEAPONS } from './data/weapons';
 import { CHARACTERS } from './data/characters';
@@ -45,20 +45,29 @@ function log(s: BattleState, line: string) {
   s.log = [...s.log.slice(-40), line];
 }
 
-export function createBattle(chapterIndex: number, roster: Unit[], ranks: Record<string, number>): BattleState {
-  const ch = CHAPTERS[chapterIndex];
+/** The chapter a battle is played on: a story chapter, or a custom (challenge) map carried in the state. */
+export const chapterOf = (s: Pick<BattleState, 'chapterIndex' | 'custom'>): Chapter => s.custom ?? CHAPTERS[s.chapterIndex];
+
+/**
+ * Start a battle. A story chapter deploys the roster onto its start tiles, lord first. A custom map
+ * (`custom`) is played with exactly the units given, already standing where its author put them.
+ */
+export function createBattle(chapterIndex: number, roster: Unit[], ranks: Record<string, number>, custom?: Chapter): BattleState {
+  const ch = custom ?? CHAPTERS[chapterIndex];
   const map = parseMap(ch.map);
   const ordered = [...roster].filter(u => u.hp > 0 && (!u.reserve || u.isLord)).sort((a, b) => Number(!!b.isLord) - Number(!!a.isLord));
-  const players: Unit[] = ordered.slice(0, Math.min(ch.playerStarts.length, MAX_UNITS_PER_SIDE)).map((u, i) => ({
-    ...clone(u), team: 'player', x: ch.playerStarts[i].x, y: ch.playerStarts[i].y, done: false,
-  }));
+  const players: Unit[] = custom
+    ? roster.slice(0, MAX_UNITS_PER_SIDE).map(u => ({ ...clone(u), team: 'player', done: false }))
+    : ordered.slice(0, Math.min(ch.playerStarts.length, MAX_UNITS_PER_SIDE)).map((u, i) => ({
+      ...clone(u), team: 'player', x: ch.playerStarts[i].x, y: ch.playerStarts[i].y, done: false,
+    }));
   let n = 0;
   const enemies = ch.enemies.slice(0, MAX_UNITS_PER_SIDE).map(sp => makeEnemy(sp, `e${++n}`));
   return {
     chapterIndex, map, width: map[0].length, height: map.length,
     units: [...players, ...enemies], turn: 1, phase: 'player', ranks: { ...ranks },
     bondGains: {}, goldEarned: 0, kills: 0, fallenUnits: [],
-    log: [`Chapter ${ch.number}: ${ch.title}`], seized: false, enemyCounter: n, visited: [], burned: [], opened: [], recruited: [],
+    log: [ch.number ? `Chapter ${ch.number}: ${ch.title}` : ch.title], custom, seized: false, enemyCounter: n, visited: [], burned: [], opened: [], recruited: [],
   };
 }
 
@@ -75,8 +84,8 @@ export type Outcome = 'ongoing' | 'victory' | 'defeat';
 
 export function outcome(s: BattleState): Outcome {
   const players = s.units.filter(u => u.team === 'player');
-  if (!players.some(u => u.isLord)) return 'defeat';
-  const ch = CHAPTERS[s.chapterIndex];
+  const ch = chapterOf(s);
+  if (ch.loseRule === 'all' ? players.length === 0 : !players.some(u => u.isLord)) return 'defeat';
   const enemies = s.units.filter(u => u.team === 'enemy');
   const pending = (ch.reinforcements ?? []).some(r => r.turn > s.turn);
   switch (ch.objective.type) {
@@ -234,7 +243,7 @@ export function applyPotion(state: BattleState, unitId: string): { state: Battle
 /** Houses that still stand with their reward: not yet visited and not burned. */
 export function openHouses(s: BattleState): House[] {
   const gone = new Set([...(s.visited ?? []), ...(s.burned ?? [])]);
-  return (CHAPTERS[s.chapterIndex].houses ?? []).filter(h => !gone.has(`${h.x},${h.y}`));
+  return (chapterOf(s).houses ?? []).filter(h => !gone.has(`${h.x},${h.y}`));
 }
 
 /** The open house a player unit is standing on, if any. */
@@ -293,7 +302,7 @@ export interface Lock extends Pos { kind: 'chest' | 'door' | 'gate'; }
 /** Chests nobody has opened yet. */
 export function openChests(s: BattleState): House[] {
   const gone = new Set(s.opened ?? []);
-  return (CHAPTERS[s.chapterIndex].chests ?? []).filter(h => !gone.has(`${h.x},${h.y}`));
+  return (chapterOf(s).chests ?? []).filter(h => !gone.has(`${h.x},${h.y}`));
 }
 /** Doors and gates still shut. */
 export function shutDoors(s: BattleState): Pos[] {
@@ -491,7 +500,7 @@ export function endEnemyPhase(state: BattleState): { state: BattleState; heals: 
   tickDragons(s, 'player');
   const heals = terrainHeal(s, 'player');
   const spawned: string[] = [];
-  const ch = CHAPTERS[s.chapterIndex];
+  const ch = chapterOf(s);
   for (const r of ch.reinforcements ?? []) {
     if (r.turn !== s.turn) continue;
     for (const sp of r.units) {

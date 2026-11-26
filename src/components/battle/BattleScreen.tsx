@@ -11,7 +11,7 @@ import { TERRAIN } from '../../game/data/terrain';
 import {
   computeReach, destinations, key, manhattan, pathTo, threatTiles, tilesInRange, unitAt, type Reach,
 } from '../../game/pathfinding';
-import type { BattleState, Campaign, Pos, Unit } from '../../game/types';
+import type { BattleState, Campaign, Chapter, Pos, Unit } from '../../game/types';
 import { MAX_ITEMS, PICK_USES, STACKS, STACK_IDS, attackWeapons, canTake, picksOf, isFlying, itemCount, staffIndex, wdef, weaponLabel } from '../../game/units';
 import { profileFor } from '../../game/data/profiles';
 import type { Strike, Forecast } from '../../game/combat';
@@ -48,6 +48,8 @@ export type SaveSource = () => { ok: true; battle: BattleState } | { ok: false; 
 interface Props {
   chapterIndex: number;
   campaign: Campaign;
+  /** A challenge map, played with `campaign.roster` exactly as placed. */
+  custom?: Chapter;
   /** Board state restored from a save. */
   resume?: BattleState;
   registerSave: (fn: SaveSource | null) => void;
@@ -57,9 +59,10 @@ interface Props {
   onQuit: () => void;
 }
 
-export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onOpenSaveMenu, onVictory, onDefeat, onQuit }: Props) {
-  const chapter = CHAPTERS[chapterIndex];
-  const [state, _setState] = useState<BattleState>(() => (resume ? structuredClone(resume) : createBattle(chapterIndex, campaign.roster, campaign.ranks)));
+export function BattleScreen({ chapterIndex, campaign, custom, resume, registerSave, onOpenSaveMenu, onVictory, onDefeat, onQuit }: Props) {
+  const chapter = custom ?? resume?.custom ?? CHAPTERS[chapterIndex];
+  const [state, _setState] = useState<BattleState>(() => (resume ? structuredClone(resume) : createBattle(chapterIndex, campaign.roster, campaign.ranks, custom)));
+  const chapterLabel = chapter.number ? `Chapter ${chapter.number}: ` : 'Challenge: ';
   const stateRef = useRef(state);
   const setState = useCallback((s: BattleState) => { stateRef.current = s; _setState(s); }, []);
 
@@ -275,7 +278,7 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
       if (resume) {
         await showBanner('Player phase', 'player', 950, `Turn ${resume.turn}, resumed`);
       } else {
-        await showBanner(chapter.title, 'chapter', 1700, `Chapter ${chapter.number}: ${chapter.objectiveText}`);
+        await showBanner(chapter.title, 'chapter', 1700, `${chapterLabel}${chapter.objectiveText}`);
         await showBanner('Player phase', 'player', 950, 'Turn 1');
       }
       setBusy(false);
@@ -727,7 +730,7 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
     if (healTargets(state, menuUnit).length) menuItems.push({ id: 'heal', label: `Heal (+${healAmount(menuUnit)})` });
     if (menuUnit.potions > 0 && menuUnit.hp < menuUnit.stats.hp) menuItems.push({ id: 'item', label: `Vulnerary (${menuUnit.potions})` });
     const o = chapter.objective;
-    if (o.type === 'seize' && menuUnit.isLord && menuUnit.x === o.x && menuUnit.y === o.y) menuItems.push({ id: 'seize', label: 'Seize' });
+    if (o.type === 'seize' && (menuUnit.isLord || chapter.loseRule === 'all') && menuUnit.x === o.x && menuUnit.y === o.y) menuItems.push({ id: 'seize', label: 'Seize' });
     if (canTransform(menuUnit)) menuItems.push({ id: 'transform', label: `Transform (${menuUnit.stones} stone${menuUnit.stones === 1 ? '' : 's'})` });
     if (stealOptions(state, menuUnit).length) menuItems.push({ id: 'steal', label: 'Steal' });
     for (const l of locksNear(state, menuUnit)) for (const tool of openTools(menuUnit)) {
@@ -886,7 +889,7 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
 
       <footer className="hud">
         <section className="hud-obj">
-          <div className="chapter-no">Chapter {chapter.number}: {chapter.title}</div>
+          <div className="chapter-no">{chapterLabel}{chapter.title}</div>
           <p>{chapter.objectiveText}</p>
           <div className="turn-row">
             <span className={`phase-tag ${state.phase}`}>{state.phase === 'player' ? 'Your turn' : 'Enemy turn'}</span>
@@ -979,13 +982,13 @@ export function BattleScreen({ chapterIndex, campaign, resume, registerSave, onO
           <div className="pause" onClick={e => e.stopPropagation()}>
             <h3>Paused</h3>
             <button className="primary" onClick={() => setPaused(false)}>Resume</button>
-            <button onClick={() => { setPaused(false); onOpenSaveMenu('save'); }}>Save game <kbd>Ctrl+S</kbd></button>
+            {!chapter.number ? null : <button onClick={() => { setPaused(false); onOpenSaveMenu('save'); }}>Save game <kbd>Ctrl+S</kbd></button>}
             <button onClick={() => { setPaused(false); onOpenSaveMenu('load'); }}>Load game <kbd>Ctrl+O</kbd></button>
             <button className={animOn ? 'toggle on' : 'toggle'} aria-pressed={animOn} onClick={toggleAnim}>
               Battle animations: {animOn ? 'on' : 'off'}
             </button>
             {!confirmQuit
-              ? <button className="ghost" onClick={() => setConfirmQuit(true)}>Quit to title</button>
+              ? <button className="ghost" onClick={() => setConfirmQuit(true)}>{chapter.number ? 'Quit to title' : 'Quit to challenge list'}</button>
               : <button className="danger" onClick={onQuit}>Quit and lose this battle's progress</button>}
           </div>
         </div>

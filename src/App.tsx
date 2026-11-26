@@ -4,6 +4,9 @@ import type { BattleResult } from './game/battle';
 import { addRecruits, enterCamp, mergeBattle, newCampaign } from './game/campaign';
 import { latestSave, readSave, slotLabel, writeSave, type SaveData, type SlotId } from './game/saves';
 import type { BattleState, Campaign, GameMode } from './game/types';
+import { listChallenges, playerUnits, recordClear, toChapter, type ChallengeMap } from './game/challenge';
+import { ChallengeResult, ChallengeScreen } from './components/ChallengeScreen';
+import { MapBuilder } from './components/MapBuilder';
 import { BattleScreen, type SaveSource } from './components/battle/BattleScreen';
 import { CampScreen } from './components/camp/CampScreen';
 import { SaveMenu } from './components/SaveMenu';
@@ -18,7 +21,15 @@ type Screen =
   | { kind: 'battle'; chapterIndex: number; attempt: number; resume?: BattleState }
   | { kind: 'camp' }
   | { kind: 'gameover'; chapterIndex: number }
-  | { kind: 'ending' };
+  | { kind: 'ending' }
+  | { kind: 'challenges' }
+  | { kind: 'builder'; map: ChallengeMap }
+  | { kind: 'cbattle'; map: ChallengeMap; attempt: number }
+  | { kind: 'cresult'; map: ChallengeMap; won: boolean; turns: number; best?: number };
+
+/** A stand-in campaign for a challenge battle: just the placed units. Nothing carries over. */
+const challengeCampaign = (m: ChallengeMap): Campaign =>
+  ({ mode: 'casual', chapterIndex: 0, roster: playerUnits(m), fallen: [], gold: 0, bonds: {}, ranks: {}, ap: 0 });
 
 type CanSave = { ok: true } | { ok: false; reason: string };
 
@@ -64,6 +75,11 @@ export default function App() {
     setScreen({ kind: 'camp' });
   };
 
+  const playChallenge = (map: ChallengeMap) => {
+    attempts.current += 1;
+    setScreen({ kind: 'cbattle', map, attempt: attempts.current });
+  };
+
   const retry = (chapterIndex: number) => {
     if (snapshot.current) setCampaign(snapshot.current);
     attempts.current += 1;
@@ -78,6 +94,7 @@ export default function App() {
       const r = saveSource.current?.();
       return r ? (r.ok ? { ok: true } : { ok: false, reason: r.reason }) : { ok: false, reason: 'The battle is still loading.' };
     }
+    if (screen.kind === 'cbattle') return { ok: false, reason: 'Challenge battles are not saved; they are short enough to replay.' };
     return { ok: false, reason: 'You can save at the rest area, or during a battle on your turn.' };
   };
 
@@ -94,7 +111,7 @@ export default function App() {
       say(writeSave(slot, 'battle', base, r.battle) ? `Saved to ${slotLabel(slot)}.` : 'Could not save: browser storage is unavailable.');
       return;
     }
-    say('You can save at the rest area, or during a battle on your turn.');
+    say(screen.kind === 'cbattle' ? 'Challenge battles are not saved.' : 'You can save at the rest area, or during a battle on your turn.');
   };
 
   const applySave = (d: SaveData) => {
@@ -138,7 +155,7 @@ export default function App() {
   let body: JSX.Element | null = null;
   switch (screen.kind) {
     case 'title':
-      body = <TitleScreen canContinue={!!latestSave()} onNew={newGame} onContinue={() => { const d = latestSave(); if (d) applySave(d); }} onLoad={() => setMenu('load')} />;
+      body = <TitleScreen canContinue={!!latestSave()} onNew={newGame} onContinue={() => { const d = latestSave(); if (d) applySave(d); }} onLoad={() => setMenu('load')} onChallenge={() => setScreen({ kind: 'challenges' })} />;
       break;
     case 'travel':
       body = (
@@ -198,6 +215,39 @@ export default function App() {
     case 'ending':
       body = campaign ? <EndingScreen campaign={campaign} onTitle={() => setScreen({ kind: 'title' })} /> : null;
       break;
+    case 'challenges':
+      body = <ChallengeScreen onPlay={playChallenge} onEdit={map => setScreen({ kind: 'builder', map })} onBack={() => setScreen({ kind: 'title' })} />;
+      break;
+    case 'builder':
+      body = <MapBuilder key={screen.map.id} initial={screen.map} onPlay={playChallenge} onDone={() => setScreen({ kind: 'challenges' })} />;
+      break;
+    case 'cbattle': {
+      const { map } = screen;
+      body = (
+        <BattleScreen
+          key={`c${screen.attempt}`}
+          chapterIndex={0}
+          campaign={challengeCampaign(map)}
+          custom={toChapter(map)}
+          registerSave={registerSave}
+          onOpenSaveMenu={setMenu}
+          onVictory={r => {
+            const best = listChallenges().find(x => x.id === map.id)?.best;
+            recordClear(map.id, r.turns);
+            setScreen({ kind: 'cresult', map, won: true, turns: r.turns, best });
+          }}
+          onDefeat={() => setScreen({ kind: 'cresult', map, won: false, turns: 0 })}
+          onQuit={() => setScreen({ kind: 'challenges' })}
+        />
+      );
+      break;
+    }
+    case 'cresult': {
+      const { map } = screen;
+      body = <ChallengeResult map={map} won={screen.won} turns={screen.turns} best={screen.best} onRetry={() => playChallenge(map)}
+        onEdit={() => setScreen({ kind: 'builder', map: listChallenges().find(x => x.id === map.id) ?? map })} onBack={() => setScreen({ kind: 'challenges' })} />;
+      break;
+    }
   }
 
   return (

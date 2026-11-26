@@ -36,7 +36,7 @@ There is no lint or formatting script; match the style of the code you are editi
 
 ### What the sim checks
 
-`npm run sim` (also `npm test`) is the main automated safety net. It runs five kinds of checks:
+`npm run sim` (also `npm test`) is the main automated safety net. It runs these kinds of checks:
 
 - **Movement rule**: armoured classes must move least, fliers most, and every other class
   strictly between them.
@@ -50,6 +50,10 @@ There is no lint or formatting script; match the style of the code you are editi
   also checks that every chapter title appears and that the number of chapters in the prose
   matches the data.
 - **AI behaviour**: attacking a guard must wake the nearby guard post.
+- **Rules**: effective damage, stealing, enemy theft and retrieval, doors, and breath elements.
+- **Challenge mode**: the default map is playable; both lose rules; reinforcements arrive on
+  their turn; validation catches common mistakes; export and import round-trip; and the AI can
+  play a challenge map to the end.
 - **AI-vs-AI auto-play**: it plays 40 full campaigns with the AI controlling both sides, then
   reports how many reached the final chapter and where the others stopped.
 
@@ -100,6 +104,7 @@ src/
     progression.ts      exp and level-ups
     campaign.ts         roster merging, camp, activity points
     saves.ts            save slots and localStorage persistence
+    challenge.ts        challenge maps: format, defaults, validation, storage, file import/export
     data/
       chapters.ts       maps, objectives, enemies, houses, chests, dialogue
       characters.ts     player templates, looks, builds, names
@@ -114,6 +119,8 @@ src/
     StoryScene.tsx      visual-novel dialogue
     WorldMap.tsx        illustrated map of Aldmere and travel animation
     SaveMenu.tsx        save/load slots and export/import
+    ChallengeScreen.tsx challenge list, import/export, result screen
+    MapBuilder.tsx      the challenge map builder
     Profile.tsx         profile viewer and Characters codex
     ModelSheet.tsx      #gallery model sheet
     SpriteBrowser.tsx   #sprites browser

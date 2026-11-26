@@ -111,6 +111,8 @@ export interface EnemySpawn {
   lookId?: string;
   /** Carries a key. */
   key?: boolean;
+  /** Vulneraries carried; dropped to whoever defeats it. */
+  potions?: number;
   statBonus?: Partial<Stats>;
 }
 
@@ -151,6 +153,8 @@ export interface Chapter {
   post: DialogueLine[];
   reward: number;
   backdrop: string;
+  /** How the player loses: the lord (leader) falling, the default, or the whole army falling. */
+  loseRule?: 'leader' | 'all';
 }
 
 export type RankLetter = 'C' | 'B' | 'A' | 'S';
@@ -180,6 +184,8 @@ export interface Campaign {
 
 export interface BattleState {
   chapterIndex: number;
+  /** A custom map (challenge mode) played instead of CHAPTERS[chapterIndex]. */
+  custom?: Chapter;
   map: TerrainId[][];
   width: number;
   height: number;

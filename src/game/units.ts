@@ -131,7 +131,7 @@ export function makeEnemy(sp: EnemySpawn, id: string): Unit {
   return {
     id, name: sp.name ?? c.name, classId: sp.classId, team: 'enemy',
     level: sp.level, exp: 0, stats, growth: { ...c.growth }, hp: stats.hp,
-    weapons: sp.weapons.map(makeWeapon), equipped: 0, potions: 0, stones: c.shifts ? 1 : undefined, picks: c.steals ? [2] : undefined, keys: sp.key ? 1 : undefined,
+    weapons: sp.weapons.map(makeWeapon), equipped: 0, potions: sp.potions ?? 0, stones: c.shifts ? 1 : undefined, picks: c.steals ? [2] : undefined, keys: sp.key ? 1 : undefined,
     isBoss: sp.isBoss, ai: sp.ai ?? 'aggressive', lookId: sp.lookId,
     x: sp.x, y: sp.y, done: false,
   };
