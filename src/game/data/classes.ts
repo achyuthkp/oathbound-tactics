@@ -21,7 +21,7 @@ const LIST: ClassDef[] = [
   { id: 'thief', name: 'Thief', weapons: ['sword'], moveType: 'foot', mov: 6, steals: true, base: s(16, 3, 6, 9, 4, 2), growth: s(60, 30, 50, 60, 45, 15), desc: 'Quick and fragile. Steals weapons and vulneraries from adjacent enemies it is at least as fast as, and opens chests, doors and gates with lockpicks as well as keys.' },
   { id: 'manakete', name: 'Dragonkin', weapons: ['breath'], moveType: 'foot', mov: 5, shifts: true, base: s(18, 3, 4, 5, 4, 3), growth: s(75, 40, 35, 35, 35, 30), desc: 'Harmless in human form. Spends a dragonstone to become a dragon for three turns: far stronger and tougher, with fire breath that reaches two tiles.' },
   { id: 'wyvern', name: 'Wyvern Rider', weapons: ['axe'], moveType: 'flying', mov: 8, base: s(21, 7, 4, 4, 2, 7), growth: s(80, 50, 35, 35, 25, 40), desc: 'Armoured axe rider on a red wyvern. Flies over any terrain, hits hard and shrugs off blows, but is slow. Weak to bows.' },
-  { id: 'ashlord', name: 'Ash Regent', weapons: ['sword', 'axe'], moveType: 'foot', mov: 5, base: s(30, 9, 10, 8, 6, 9), growth: s(80, 50, 45, 40, 30, 40), desc: 'Usurper of Aldmere.' },
+  { id: 'ashlord', name: 'Usurper', weapons: ['sword', 'axe'], moveType: 'foot', mov: 5, base: s(30, 9, 10, 8, 6, 9), growth: s(80, 50, 45, 40, 30, 40), desc: 'Usurper of Aldmere.' },
 ];
 
 export const CLASSES: Record<string, ClassDef> = Object.fromEntries(LIST.map(c => [c.id, c]));

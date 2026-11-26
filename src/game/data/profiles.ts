@@ -23,8 +23,8 @@ export interface Profile {
 export const PROFILES: Record<string, Profile> = {
   kael: {
     id: 'kael', name: 'Kael Valen', title: 'Heir of House Valen', age: '31', classId: 'lord', height: '180 cm', side: 'ally',
-    origin: 'Second son of the king. He became heir when his brother died in the border war, then spent his twenties as a garrison captain on the northern frontier rather than at court. He was three days\' ride away the night the capital fell.',
-    personality: 'Dry-humoured, stubborn and quietly guilty about where he was that night. Listens more than he talks, then decides fast. Treats his companions as equals, which unsettles the knights.',
+    origin: 'Second son of King Aldric. He became heir when his brother died in the border war, then spent his twenties as a garrison captain on the northern frontier. Recalled for the harvest feast, he watched the chancellor\'s men murder his father, mother and sister, and escaped only because Lyra cut a way out.',
+    personality: 'Dry-humoured, stubborn and quietly guilty that he lived when they did not. Listens more than he talks, then decides fast. Treats his companions as equals, which unsettles the knights.',
     appearance: 'Untamed dark-brown hair, a week of stubble and a healed scar through the left eyebrow. Valen-blue coat with gold trim and a navy field cape that has seen better years.',
     combat: 'Footwork duelist with the Valen Rapier. Light, accurate and fast enough to strike twice. He is the one unit that must not fall.',
     likes: 'Early mornings, old maps, plain bread.',
@@ -111,7 +111,7 @@ export const PROFILES: Record<string, Profile> = {
   },
   gorran: {
     id: 'gorran', name: 'Gorran', title: 'Brigand Chief', age: '37', classId: 'brigand', height: '188 cm', side: 'enemy',
-    origin: 'A deserter from the border war who turned raider. He sells villages, roads and rumours to whoever pays, lately the Empire.',
+    origin: 'A deserter from the border war who turned raider. He sells villages, roads and rumours to whoever pays, lately Malrec.',
     personality: 'Cheerful in the way of a man who has never been punished for anything. Cowardly when cornered.',
     appearance: 'Shaggy black hair and beard, a red sash over patched leathers, a notched steel axe.',
     combat: 'Holds the fort in Chapter 1. Hits hard but is clumsy, and swords have the advantage against him.',
@@ -121,17 +121,17 @@ export const PROFILES: Record<string, Profile> = {
   },
   varn: {
     id: 'varn', name: 'Captain Varn', title: 'Imperial Captain', age: '36', classId: 'soldier', height: '183 cm', side: 'enemy',
-    origin: 'Aldmere-born career officer who chose the winning side the week the Empire crossed the border. Commanded Tomas for a year.',
+    origin: 'Aldmere-born career officer who chose the winning side the night Malrec took the crown. Holds Ironvale for him with Imperial support. Commanded Tomas for a year.',
     personality: 'Pragmatic and contemptuous of sentiment. Believes loyalty is something you rent.',
     appearance: 'Closed helm with a red plume, crimson Imperial tabard over plate, a steel lance.',
     combat: 'Holds the east-bank fort at Ironvale. Lances punish sword users; bring axes.',
     likes: 'Order, promotion.', dislikes: 'Deserters.',
-    quote: 'We are the Empire\'s knights now. Or we are corpses.',
+    quote: 'We are King Malrec\'s knights now. Or we are corpses.',
     design: 'Palette-swapped mirror of Tomas\'s armour in Imperial red, to make the defection read visually.',
   },
   morwen: {
     id: 'morwen', name: 'Lady Morwen', title: 'Warden of Highmoor', age: '34', classId: 'myrmidon', height: '174 cm', side: 'enemy',
-    origin: 'An Imperial duelist rewarded with Highmoor after it fell. She has never lost a formal duel and considers sieges beneath her.',
+    origin: 'An Imperial duelist lent to Malrec and rewarded with Highmoor after it fell. She has never lost a formal duel and considers sieges beneath her. Her men dig beneath the keep on Malrec\'s orders.',
     personality: 'Cold, theatrical and very patient. Enjoys making her enemies come to her.',
     appearance: 'Long black hair, a plum duelling coat with a crimson cape, and a Killing Edge.',
     combat: 'Never leaves the throne. Fast and crit-heavy; lances and high defense blunt her.',
@@ -140,11 +140,11 @@ export const PROFILES: Record<string, Profile> = {
     design: 'Same swordmaster frame as Rei, dressed in court colours: the two are meant to feel like a mirror match.',
   },
   malrec: {
-    id: 'malrec', name: 'Malrec', title: 'The Ash Regent', age: '39', classId: 'ashlord', height: '185 cm', side: 'enemy',
-    origin: 'Royal chancellor of Aldmere for eight years. He opened the gates of Caer Valen from the inside and now rules as the Empire\'s regent.',
+    id: 'malrec', name: 'Malrec', title: 'The Usurper King', age: '39', classId: 'ashlord', height: '185 cm', side: 'enemy',
+    origin: 'Royal chancellor of Aldmere for eight years. He murdered King Aldric\'s family at the harvest feast and took the crown, with the Ashen Empire\'s spears to hold it. He has stolen part of the power of the Dark Dragon sealed beneath Caer Valen, and with it he binds the minds of dragonkin.',
     personality: 'Calm, articulate and certain he is the only adult in the room. Thinks of Aldmere\'s old kings as dreamers.',
     appearance: 'Prematurely silver hair swept back, a thin scar over one brow, an iron crown, a black coat over armour with an ember-red cape.',
-    combat: 'Final boss. Very high stats and the Ashen Blade. Holds the throne; only one tile of approach.',
+    combat: 'The story\'s final enemy. Very high stats and the Ashen Blade. In the throne room at Caer Valen he does not fight: he looses the bound dragonkin and leaves.',
     likes: 'Order, silence, being right.', dislikes: 'Songs.',
     quote: 'I ended a dynasty of dreamers.',
     design: 'Black and ember against Kael\'s blue and gold. The crown is the only gold on any enemy, so he reads as a usurper at a glance.',
@@ -164,7 +164,7 @@ PROFILES.pip = {
 };
 PROFILES.sable = {
   id: 'sable', name: 'Sable', title: 'Last of the Dragonkin', age: 'Looks 30', classId: 'manakete', height: '170 cm', side: 'ally',
-  origin: 'One of the dragonkin who slept under Highmoor long before there was a kingdom on top of it. Morwen\'s garrison woke her by digging too deep. She has not decided what she thinks of the present century.',
+  origin: 'One of the dragonkin who slept under Highmoor long before there was a kingdom on top of it. Morwen\'s diggers woke her on Malrec\'s orders so that he could bind her. She heard his call and refused it, and joins Kael after Highmoor falls. She has not decided what she thinks of the present century.',
   personality: 'Courteous, remote and very old. Treats the war as weather. Fiercely protective of the few people she has bothered to learn the names of.',
   appearance: 'Violet-black hair, two small curved horns, pale skin, and a dark robe. She carries her dragonstone in her hand like a lantern.',
   combat: 'Cannot fight in human form. Spending a dragonstone makes her a violet dragon for three turns, with far higher strength and defence and fire breath that reaches two tiles.',
@@ -184,15 +184,15 @@ PROFILES.osric = {
 };
 
 export const ARCHETYPES: Record<string, Profile> = Object.fromEntries(([
-  ['brigand', 'Ashen Brigand', 'Raiders who follow the Imperial army for its leftovers. Mostly deserters and desperate farmers.', 'Axes. Strong and inaccurate; swords beat them. They carry torches, and they are the only enemies who burn houses.'],
+  ['brigand', 'Ashen Brigand', 'Raiders paid in Malrec\'s coin to hunt the prince. Mostly deserters and desperate farmers.', 'Axes. Strong and inaccurate; swords beat them. They carry torches, and they are the only enemies who burn houses.'],
   ['fighter', 'Imperial Axeman', 'Shock infantry recruited from the Empire\'s mining provinces.', 'Heavy axes. They break lance lines.'],
-  ['soldier', 'Imperial Soldier', 'The backbone of the occupation: conscripts in red tabards, many of them Aldmere-born.', 'Lances. Dangerous to sword users.'],
+  ['soldier', 'Imperial Soldier', 'The backbone of the Ashen Legion: conscripts in red tabards, many of them Aldmere-born.', 'Lances. Dangerous to sword users.'],
   ['knight', 'Imperial Knight', 'Armoured veterans who hold gates and bridges.', 'Very high defense, slow. Use axes or forged weapons.'],
-  ['myrmidon', 'Ashen Blade', 'Duelists trained in the Regent\'s own school.', 'Fast swords with high critical rates.'],
+  ['myrmidon', 'Ashen Blade', 'Duelists from the Empire\'s fencing schools, lent to Malrec.', 'Fast swords with high critical rates.'],
   ['archer', 'Imperial Archer', 'Tower garrison bowmen.', 'Range 1–2. Keep fliers away from them.'],
   ['cavalier', 'Imperial Cavalier', 'Mounted raiders who run down stragglers.', 'Swords and lances, high movement.'],
   ['thief', 'Ashen Cutpurse', 'Camp followers who slip into a castle ahead of the army for whatever is not nailed down.', 'They head straight for the treasure chests and empty them. Defeat one that has looted and it drops everything it took.'],
-  ['manakete', 'Ashen Dragonkin', 'One of the old dragon-blooded, bound to the Regent\'s service.', 'Harmless until it changes shape, which it does the moment you come close. As a dragon it breathes fire two tiles and shrugs off most blows; wait it out or bring it down fast.'],
+  ['manakete', 'Bound Dragonkin', 'One of the old dragon-blooded, its mind bound to Malrec\'s will by the stolen power of the Dark Dragon.', 'Harmless until it changes shape, which it does the moment you come close. As a dragon it breathes fire two tiles and shrugs off most blows; wait it out or bring it down fast.'],
   ['wyvern', 'Imperial Wyvern Rider', 'The Ashen Empire\'s heavy cavalry of the air, mounted on red wyverns bred in the northern mountains.', 'Axes from above. Tough and hard-hitting but slow; bows bring them down and swords out-duel them.'],
   ['skyknight', 'Imperial Sky Knight', 'Pegasus riders taken from conquered kingdoms\' stables.', 'Fly over terrain. Weak to bows.'],
 ] as const).map(([id, name, origin, combat]) => [id, {

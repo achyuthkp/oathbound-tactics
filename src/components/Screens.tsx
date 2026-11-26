@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { CHARACTER_ENDINGS, lookById, nameById } from '../game/data/characters';
+import { STORY_FINISHED } from '../game/data/chapters';
 import { SUPPORTS, pairKey } from '../game/data/supports';
 import type { Campaign, GameMode } from '../game/types';
 import { Portrait, WeaponIcon } from './art';
@@ -24,7 +25,7 @@ export function TitleScreen({ canContinue, onNew, onContinue, onLoad, onChalleng
         <button className="ghost" onClick={() => setPanel('help')}>How to play</button>
         <button className="ghost" onClick={() => { window.location.hash = '#sprites'; }}>Sprites</button>
       </div>
-      <p className="title-foot">A tactical role-playing game in five chapters.</p>
+      <p className="title-foot">A tactical role-playing game. The first five chapters are here; more are coming.</p>
 
       {panel === 'mode' && (
         <div className="modal-back" onClick={() => setPanel('none')}>
@@ -91,6 +92,16 @@ export function GameOverScreen({ onRetry, onLoad, onTitle }: { onRetry: () => vo
 }
 
 export function EndingScreen({ campaign, onTitle }: { campaign: Campaign; onTitle: () => void }) {
+  if (!STORY_FINISHED) {
+    return (
+      <div className="ending">
+        <h1>To be continued</h1>
+        <p>Kael's army has escaped Caer Valen. The road to Saltmere, and the rest of the story, is still being written.</p>
+        <p className="hint">Your progress is kept in the autosave from the last rest area.</p>
+        <button className="primary" onClick={onTitle}>Return to title</button>
+      </div>
+    );
+  }
   const alive = campaign.roster.map(u => u.id);
   const sPairs = SUPPORTS.filter(p => p.romance && (campaign.ranks[pairKey(p.a, p.b)] ?? 0) >= 4 && alive.includes(p.a) && alive.includes(p.b));
   const paired = new Set(sPairs.flatMap(p => [p.a, p.b]));

@@ -128,7 +128,7 @@ export const CHARACTERS: Record<string, CharacterInfo> = {
   gorran: { name: 'Gorran', title: 'Brigand Chief', look: { skin: '#cf9a74', hair: '#2a2420', style: 'rugged', cloth: '#5a3424', accent: '#8a2a20', eyes: '#3a2a1a', outfit: 'raider' } },
   varn: { name: 'Varn', title: 'Imperial Captain', look: { skin: '#dcae8a', hair: '#333', style: 'helm', cloth: '#4a2228', accent: '#c23b3b', stubble: true, eyes: '#4a3a2a', outfit: 'armor' } },
   morwen: { name: 'Morwen', title: 'Warden of Highmoor', look: { skin: '#eccbb5', hair: '#1f1a22', style: 'long', cloth: '#3a1f2f', accent: '#c43c5c', eyes: '#8a2a3a', lashes: true, outfit: 'cape', cape: '#5a1f35' } },
-  malrec: { name: 'Malrec', title: 'The Ash Regent', look: { skin: '#e0c0a8', hair: '#c4c4c4', style: 'slick', cloth: '#1f1f26', accent: '#c46a2a', crown: true, scar: true, eyes: '#b07a2a', outfit: 'cape', cape: '#4a1408' } },
+  malrec: { name: 'Malrec', title: 'The Usurper King', look: { skin: '#e0c0a8', hair: '#c4c4c4', style: 'slick', cloth: '#1f1f26', accent: '#c46a2a', crown: true, scar: true, eyes: '#b07a2a', outfit: 'cape', cape: '#4a1408' } },
 };
 
 /** Generic looks for nameless enemies, by class. */

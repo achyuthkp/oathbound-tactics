@@ -287,7 +287,7 @@ weapons wear too.
 
 ### Dragonkin
 
-Helpless in human form (Sable joins in chapter 4; the Regent keeps one in chapter 5).
+Helpless in human form (Sable joins after chapter 4; Malrec looses bound dragonkin in chapter 5).
 **Transform** spends a dragonstone and the unit's action, and makes the unit a dragon for three
 turns after the transformation: HP +10, Str +8, Skl +3, Spd +2, Def +7, with fire breath that
 reaches two tiles and sits outside the weapon triangle. Then it changes back.
