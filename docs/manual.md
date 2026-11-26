@@ -1,7 +1,7 @@
 # Player manual
 
 *Oathbound: Ashes of Aldmere* is a grid-based tactical JRPG built with React and TypeScript.
-You lead a small band through five chapters, fight on tile maps, make camp between battles, and
+You lead a small band through seven chapters (and a side chapter you can miss), fight on tile maps, make camp between battles, and
 build bonds that can become romances. This manual covers how to play, the battle rules, saving,
 and the optional screens. For development, see [contributing.md](contributing.md); for fixes
 and workarounds, see [troubleshooting.md](troubleshooting.md) and
@@ -144,6 +144,8 @@ disadvantage the reverse. Swords, lances and axes only reach adjacent tiles.
 
 **Bows** strike at range 1–2, sit outside the triangle and deal double might to flying units.
 **Staves** heal adjacent allies.
+**Tomes** are spells for Mages: range 1–2, outside the triangle. Fire is the first spell a mage
+learns; Thunder hits harder and is harder to aim; Blizzard hits hardest of all.
 
 ### Combat math
 
@@ -197,6 +199,13 @@ A map only has houses where the story has people living there:
 | 3 Whispering Wood | deep forest | a woodward's lone cabin |
 | 4 Siege of Highmoor | the town under the castle walls | 2 |
 | 5 The Ashen Throne | the burned capital: ruins | 1 still standing |
+| 6 Saltmere | a fishing port; marines land for the houses | 3, and raiders come for them |
+| 7 Deepforge | a mining town under the mountains | 2 |
+
+Saltmere has a hidden road. Three of the town's guards fight beside you there, in green. Keep all
+three alive and the harbour pays you 3,000 gold, and a side chapter opens between Saltmere and
+Deepforge: **The Drowned Archive**, in the sea caves under the cliffs, where Vesper the mage joins
+you. Lose any one of them and the archive, and Vesper, are gone for that playthrough.
 
 A **house** with a lit doorway can be visited once: end a unit's move on it and choose **Visit**.
 Each gives one reward (gold, a vulnerary, or a weapon that goes into the visitor's pack, sold for
@@ -287,7 +296,7 @@ weapons wear too.
 
 ### Dragonkin
 
-Helpless in human form (Sable joins after chapter 4; Malrec looses bound dragonkin in chapter 5).
+Helpless in human form (Sable joins after chapter 4, Nerys in chapter 6 and Garrow in chapter 7; Malrec looses bound dragonkin from chapter 5 on).
 **Transform** spends a dragonstone and the unit's action, and makes the unit a dragon for three
 turns after the transformation: HP +10, Str +8, Skl +3, Spd +2, Def +7, with fire breath that
 reaches two tiles and sits outside the weapon triangle. Then it changes back.
@@ -306,7 +315,8 @@ strong against fliers), **light** (ivory and gold, feathered wings, antlers and 
 Breath) and **dark**.
 
 In human form each shows small wings, a tail and cheek scales in its element's colours. Sable and
-the enemy dragonkin are fire dragons; the other kinds are drawn and have their breath weapons
+the bound dragonkin of chapter 5 are fire dragons; Saltmere (chapter 6) has water dragonkin and
+Deepforge (chapter 7) earth dragonkin. Wind, light and dark are drawn and have their breath weapons
 defined but are not placed on a map yet.
 
 ### The Dark Dragon
@@ -317,9 +327,25 @@ Flame, Rending Claw, Tail Sweep, Wing Gale and Dread Roar. It is a sprite only f
 the sprite browser under the *Dragons* group; the multi-tile unit rules and its place in the
 story are not implemented yet.
 
+### Dragon Sage
+
+Vesper starts as a Mage with no dragonstones. In Deepforge she finds one and becomes a
+**Dragon Sage**: she still casts tomes in human form, and each time she transforms she chooses
+which dragon to become (fire, water, earth or wind; light dragons are Aurelie's alone) and breathes that element until she
+changes back. Like any dragonkin she carries at most 3 stones.
+
+### Green allies
+
+Some chapters have units in green fighting on your side. They hold their ground and strike anything that comes next to them in the **Ally
+phase**, after yours and before the enemy's. Enemies attack them; you can walk through them, heal
+them with a staff and hand them vulneraries with **Trade** (nothing else). A badly hurt ally
+drinks a vulnerary if it has one.
+
 ### Who marches
 
-Up to 10 units deploy. With more companions than that, the Army panel at camp has a
+Up to 10 units deploy. When you have more companions than a chapter can field, a **Preparations** screen comes up before the battle: pick who fights. Kael always does, and so does anyone who joins in that chapter. Then, before the first turn of every
+story battle, a **Formation** step lets you rearrange your units: click one, then a highlighted start tile to move it there
+or another unit to swap places, and press **Fight!** (or T) to begin. Between battles, the Army panel at camp has a
 **Marching / In reserve** toggle for everyone but Kael. The order in the panel is the deployment
 order.
 
@@ -449,7 +475,7 @@ Rapier, the Ashen Blade, the Oaken Staff) are one of a kind. The table is `WEAPO
 
 **Wyvern Riders** are the Empire's heavy fliers: armoured axe riders on red wyverns. They hit
 harder and take more than Sky Knights but are slower, and bows are still their weakness. They
-appear in chapters 4 and 5.
+appear from chapter 4 on.
 
 Mounts are drawn in detail: shaded body, bridle, reins, blaze, saddle and blanket in the rider's
 accent colour, a four-beat gallop with a streaming tail, a tail swish at rest, and a three-stage

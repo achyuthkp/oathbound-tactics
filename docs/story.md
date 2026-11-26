@@ -27,8 +27,9 @@ on his Imperial backers.
 | 3 | Whispering Wood | The charcoal-burners' wood is hunted by Malrec's men | Rei, Osric (optional) |
 | 4 | Siege of Highmoor | Freeing the castle town. Afterwards Sable is found in the vault: she resisted Malrec's call | Ilse |
 | 5 | The Ashen Throne | **A defeat.** Malrec reveals the dragon power; survive, then escape the capital | Sable |
-| 6 | Saltmere | Port town; bound water dragonkin sink ships | Nerys (water) |
-| 7 | Deepforge | Mining town enslaved to dig toward the Dark Dragon's seal | Garrow (earth) |
+| 6 | Saltmere | Port town; bound water dragonkin sink ships. Three green Saltmere guards: save all three for 3,000 gold and the side chapter | Nerys (water) |
+| 6s | The Drowned Archive (side chapter) | Only if all three guards lived. Sea caves under Saltmere; the Legion burns the dragon archive | Vesper (mage) |
+| 7 | Deepforge | Mining town enslaved to dig toward the Dark Dragon's seal. Vesper (if she joined) finds a raw dragonstone and becomes a Dragon Sage | Garrow (earth) |
 | 8 | Solenne | Temple city; defending its goddess from Malrec | Aurelie (light) |
 | 9 | Galewatch | Mountain pass; the Sky Guard returns | Kestrel (wind) |
 | 10 | (title tbd) | **Aurelie is captured**: Malrec needs her light | |
@@ -45,6 +46,7 @@ on his Imperial backers.
 | Nerys | Water dragonkin | Quietly guarded Saltmere's fishermen for a century. Dry humour, hates being thanked |
 | Garrow | Earth dragonkin | Slow-spoken, immovable. Was made to dig his own kin's prison and refused |
 | Kestrel | Wind dragonkin | Restless and quick-mouthed; never lands for long. Befriends Ilse's riders |
+| Vesper | Mage, later Dragon Sage | Keeper of the Drowned Archive. Bookish and quietly reckless. Missable: lost for good if any Saltmere guard dies. Starts with no stones; from chapter 7 picks fire, water, earth or wind each time she transforms (light is exclusive to Aurelie, dark to the Dark Dragon), max 3 stones |
 | Aurelie | Light dragonkin | Solenne's living goddess: serene in public, sheltered and curious in private. Romance option for Kael |
 
 Malrec's own forces are **the Ashen Legion**, fighting beside Imperial troops.
@@ -61,8 +63,12 @@ the player anywhere in the game or the manual.
 - The hidden romance rule: `ROMANCE_LIMIT` in `src/game/campaign.ts` (Kael: 2) and `jealous()` in `src/game/combat.ts`. When a third romance is blocked, the camp shows the ordinary "already holds an S bond" message, and the forecast never shows the penalty. The epilogue has a special entry when Kael holds two romances.
 - Nerys, Garrow, Kestrel and Aurelie: looks, builds, templates, profiles, endings, and bonds (Kael and Aurelie romance; Aurelie and Mira; Sable and Garrow; Ilse and Kestrel). They are in `LATER_IDS`: shown in the sprite browser and model sheet and placeable in challenge mode, but kept out of the title-screen codex until their chapters exist. None of them is recruited by any chapter yet.
 
+- Chapters 6 (Saltmere) and 7 (Deepforge), with bosses Commodore Hesk and Overseer Druss and bound water and earth dragonkin. Nerys and Garrow join and are in the codex.
+- Green allies (`allies` on a chapter, team `ally`, an Ally phase between player and enemy), the Saltmere reward and flag, side chapters (`requires`), the side chapter The Drowned Archive, tomes (Fire, Thunder, Blizzard), the Mage and Dragon Sage classes, and Vesper (in `LATER_IDS`, so kept out of the codex as a secret).
+
 ## Still to build
 
-- Chapters 6 to 15, a few at a time; enemy dragonkin of every element placed on them.
+- Chapters 8 to 15, a few at a time; wind and light enemy dragonkin placed on them.
+- The world map still draws the Highmoor to Caer Valen route for chapters 6 onwards; Saltmere, the archive and Deepforge need places on it.
 - The Dark Dragon as a 3x3 unit before chapter 15.
 - Optional: pirates and a sea movement type around Saltmere.

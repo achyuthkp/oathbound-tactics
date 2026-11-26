@@ -81,6 +81,8 @@ const CLASS_BUILD: Record<string, Partial<Build>> = {
   skyknight: { outfit: 'light', mount: 'pegasus' },
   wyvern: { outfit: 'armor', mount: 'wyvern' },
   thief: { outfit: 'cloak' },
+  mage: { outfit: 'robe' },
+  dragonsage: { outfit: 'robe' },
   manakete: { outfit: 'robe' },
   ashlord: { outfit: 'cape', broad: true },
 };
@@ -100,6 +102,7 @@ const CHAR_BUILD: Record<string, Partial<Build>> = {
   garrow: { outfit: 'leather', broad: true, pants: '#3d3020', boots: '#2a2014' },
   kestrel: { outfit: 'light', pants: '#2f5a4a', boots: '#24382e' },
   aurelie: { pants: '#e8dcc0', boots: '#c9a45a' },
+  vesper: { pants: '#2a2240', boots: '#1f1a2a' },
 };
 
 export function buildFor(u: { id: string; classId: string; lookId?: string; dragon?: number; weapons?: { defId: string }[] }, opts: { dismount?: boolean; element?: Element } = {}): Build {
@@ -131,12 +134,16 @@ export const CHARACTERS: Record<string, CharacterInfo> = {
   nerys: { name: 'Nerys', title: 'Warden of Saltmere', look: { skin: '#e6cdb8', hair: '#2f6fa8', style: 'long', cloth: '#1f4a6a', accent: '#7fd0f0', horns: true, eyes: '#7fd0f0', lashes: true, outfit: 'robe' } },
   garrow: { name: 'Garrow', title: 'Stone-Keeper of Deepforge', look: { skin: '#b98a62', hair: '#4a3a22', style: 'rugged', cloth: '#5a4a30', accent: '#a8916a', horns: true, stubble: true, eyes: '#b8ff6a', outfit: 'leather' } },
   kestrel: { name: 'Kestrel', title: 'Sky-Born of Galewatch', look: { skin: '#efd6be', hair: '#cfeee0', style: 'spiky', cloth: '#3f7a64', accent: '#e0fff4', horns: true, eyes: '#5fb89a', outfit: 'light' } },
+  vesper: { name: 'Vesper', title: 'Keeper of the Drowned Archive', look: { skin: '#ecd2bc', hair: '#5a3a6a', style: 'tied', cloth: '#3a2a5a', accent: '#c79aff', eyes: '#8fd0c8', lashes: true, freckles: true, outfit: 'robe' } },
   aurelie: { name: 'Aurelie', title: 'Goddess of Solenne', look: { skin: '#f8e6d6', hair: '#f2d68a', style: 'long', cloth: '#f6f0e0', accent: '#e2b23c', horns: true, eyes: '#3f9ae8', lashes: true, outfit: 'robe' } },
   // NPCs and bosses
+  saltguard: { name: 'Saltmere Guard', title: 'Harbour Watch', look: { skin: '#d8ae8a', hair: '#4a3a2a', style: 'helm', cloth: '#2f6a44', accent: '#9ad88a', stubble: true, eyes: '#4a5a3a', outfit: 'armor' } },
   gorran: { name: 'Gorran', title: 'Brigand Chief', look: { skin: '#cf9a74', hair: '#2a2420', style: 'rugged', cloth: '#5a3424', accent: '#8a2a20', eyes: '#3a2a1a', outfit: 'raider' } },
   varn: { name: 'Varn', title: 'Imperial Captain', look: { skin: '#dcae8a', hair: '#333', style: 'helm', cloth: '#4a2228', accent: '#c23b3b', stubble: true, eyes: '#4a3a2a', outfit: 'armor' } },
   morwen: { name: 'Morwen', title: 'Warden of Highmoor', look: { skin: '#eccbb5', hair: '#1f1a22', style: 'long', cloth: '#3a1f2f', accent: '#c43c5c', eyes: '#8a2a3a', lashes: true, outfit: 'cape', cape: '#5a1f35' } },
   malrec: { name: 'Malrec', title: 'The Usurper King', look: { skin: '#e0c0a8', hair: '#c4c4c4', style: 'slick', cloth: '#1f1f26', accent: '#c46a2a', crown: true, scar: true, eyes: '#b07a2a', outfit: 'cape', cape: '#4a1408' } },
+  hesk: { name: 'Hesk', title: 'Commodore of the Ashen Legion', look: { skin: '#c99a78', hair: '#6a4a30', style: 'short', cloth: '#2a2a34', accent: '#c46a2a', stubble: true, scar: true, eyes: '#4a5a6a', outfit: 'leather' } },
+  druss: { name: 'Druss', title: 'Overseer of Deepforge', look: { skin: '#d8ae8a', hair: '#555', style: 'helm', cloth: '#3a3a40', accent: '#c46a2a', stubble: true, eyes: '#4a3a2a', outfit: 'armor' } },
 };
 
 /** Generic looks for nameless enemies, by class. */
@@ -149,6 +156,7 @@ export const ENEMY_LOOKS: Record<string, Look> = {
   archer: { skin: '#d8b08c', hair: '#3a2a1e', style: 'hood', cloth: '#5a3a28', accent: '#c23b3b', outfit: 'hunter' },
   cavalier: { skin: '#e0b896', hair: '#3a2a1e', style: 'short', cloth: '#7a2230', accent: '#c23b3b', outfit: 'light' },
   thief: { skin: '#d8b08c', hair: '#2a2420', style: 'hood', cloth: '#3a2a34', accent: '#c23b3b', mask: true, outfit: 'cloak' },
+  mage: { skin: '#e2b591', hair: '#2a2420', style: 'hood', cloth: '#2a2a34', accent: '#c46a2a', outfit: 'robe' },
   manakete: { skin: '#cfc4c0', hair: '#5a5a62', style: 'long', cloth: '#3a3038', accent: '#c46a2a', horns: true, eyes: '#e0662a', outfit: 'robe' },
   wyvern: { skin: '#dcae8a', hair: '#333', style: 'helm', cloth: '#3a2228', accent: '#c23b3b', stubble: true, outfit: 'armor' },
   skyknight: { skin: '#eccbb5', hair: '#cfcfcf', style: 'bun', cloth: '#6a2a4a', accent: '#c23b3b', outfit: 'light', lashes: true },
@@ -189,6 +197,7 @@ export const PLAYER_TEMPLATES: Record<string, PlayerTemplate> = {
   garrow: { classId: 'manakete', level: 8, stats: s(30, 7, 4, 3, 4, 8), growth: s(90, 50, 30, 20, 30, 50), weapons: ['earth_breath'] },
   kestrel: { classId: 'manakete', level: 8, stats: s(22, 6, 8, 11, 8, 4), growth: s(65, 40, 50, 60, 50, 20), weapons: ['wind_breath'] },
   aurelie: { classId: 'manakete', level: 6, stats: s(21, 5, 7, 7, 10, 5), growth: s(70, 45, 45, 45, 60, 30), weapons: ['light_breath'] },
+  vesper: { classId: 'mage', level: 6, stats: s(20, 7, 8, 8, 6, 3), growth: s(60, 50, 50, 45, 40, 15), weapons: ['fire_tome', 'thunder_tome'] },
   ilse: { classId: 'skyknight', level: 6, stats: s(23, 8, 8, 11, 7, 6), growth: s(65, 40, 45, 55, 50, 20), weapons: ['iron_lance', 'killer_lance'] },
 };
 
@@ -207,6 +216,7 @@ export const CHARACTER_ENDINGS: Record<string, string> = {
   garrow: 'Garrow filled in every tunnel beneath Deepforge, one stone at a time. It took him eleven years, and he called them the best years of his life.',
   kestrel: 'Kestrel joined the new Sky Guard as its first and only dragon. Recruits learned to fly by chasing the shape of the wind over Galewatch.',
   aurelie: 'Aurelie went home to Solenne, but not to its altar. She opened the temple\'s doors to anyone who wanted to talk, and she always answered to her name.',
+  vesper: 'Vesper raised the Drowned Archive from the sea, shelf by shelf. Its first new book was her own: everything she learned about dragonstones, with one chapter left deliberately blank.',
   ilse: 'Ilse rode the skies of Highmoor until her hair turned grey, and the Sky Guard flew again.',
 };
 

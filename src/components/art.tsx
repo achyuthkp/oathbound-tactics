@@ -5,7 +5,7 @@ import { Canvas, INK, Px, mix, shade, tint, type PxPath } from './pixel';
 /* ---------- Weapon icons ---------- */
 
 export const WEAPON_COLOR: Record<WeaponType, string> = {
-  sword: '#7fb4ff', lance: '#ff8a7a', axe: '#8fdc7c', bow: '#e9c86a', staff: '#e7e2ff', breath: '#ff9a4a',
+  sword: '#7fb4ff', lance: '#ff8a7a', axe: '#8fdc7c', bow: '#e9c86a', staff: '#e7e2ff', breath: '#ff9a4a', tome: '#c79aff',
 };
 
 export function WeaponIcon({ type, size = 16 }: { type?: WeaponType | null; size?: number }) {
@@ -19,6 +19,7 @@ export function WeaponIcon({ type, size = 16 }: { type?: WeaponType | null; size
       {type === 'axe' && (<g {...common}><line x1="6" y1="21" x2="15" y2="5" /><path d="M12.5 4.5 Q21 3.5 21 12 Q17 9.5 12 10.5 Z" fill={c} stroke="none" /></g>)}
       {type === 'bow' && (<g {...common}><path d="M7 3 Q21 12 7 21" /><line x1="7" y1="3" x2="7" y2="21" strokeWidth={1.2} /><line x1="3" y1="12" x2="18" y2="12" strokeWidth={1.6} /></g>)}
       {type === 'breath' && (<g {...common}><path d="M12 3 Q19 10 16 17 Q14 21 12 21 Q7 20 7 15 Q7 11 10 9 Q10 13 12 13 Q14 9 12 3 Z" fill={c} stroke="none" /></g>)}
+      {type === 'tome' && (<g {...common}><path d="M4 5 Q8 3 12 6 Q16 3 20 5 V19 Q16 17 12 20 Q8 17 4 19 Z" /><line x1="12" y1="6" x2="12" y2="20" strokeWidth={1.4} /></g>)}
       {type === 'staff' && (<g {...common}><line x1="6" y1="21" x2="15.5" y2="8" /><circle cx="17.5" cy="5.5" r="3" fill={c} stroke="none" /></g>)}
     </svg>
   );

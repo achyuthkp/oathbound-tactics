@@ -1,6 +1,6 @@
 import { TERRAIN } from './data/terrain';
 import type { BattleState, Pos, Unit } from './types';
-import { attackWeapons, classOf, movOf, wdef } from './units';
+import { attackWeapons, classOf, foes, movOf, wdef } from './units';
 
 export const key = (x: number, y: number): number => y * 64 + x;
 export const manhattan = (a: Pos, b: Pos): number => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
@@ -42,7 +42,7 @@ export function computeReach(s: BattleState, u: Unit, maxCost: number = movOf(u)
       const c = moveCost(s, u, nx, ny);
       if (!Number.isFinite(c)) continue;
       const occ = unitAt(s, nx, ny);
-      if (occ && occ.team !== u.team) continue;
+      if (occ && foes(occ, u)) continue;
       const nc = cur.cost + c;
       if (nc > maxCost) continue;
       const k = key(nx, ny);

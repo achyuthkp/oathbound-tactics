@@ -1,5 +1,7 @@
 import { CHAPTERS } from './data/chapters';
 import { createPlayerUnit } from './data/characters';
+import { CLASSES } from './data/classes';
+import { MAX_STONES } from './units';
 import { SUPPORTS, initialBonds, pairKey } from './data/supports';
 import type { BattleResult } from './battle';
 import type { Campaign, GameMode, SupportPair, Unit } from './types';
@@ -11,12 +13,32 @@ export function newCampaign(mode: GameMode): Campaign {
   return { mode, chapterIndex: 0, roster: [], fallen: [], gold: START_GOLD, bonds: initialBonds(), ranks: {}, ap: 0 };
 }
 
-/** Adds the chapter's recruits to the roster (once). */
+/** Adds the chapter's recruits to the roster (once), and awakens whoever the chapter awakens. */
 export function addRecruits(c: Campaign, chapterIndex: number): Campaign {
-  const ids = CHAPTERS[chapterIndex].recruits ?? [];
+  const ch = CHAPTERS[chapterIndex];
+  const ids = ch.recruits ?? [];
   const add = ids.filter(id => !c.roster.some(u => u.id === id) && !c.fallen.includes(id)).map(createPlayerUnit);
-  return add.length ? { ...c, roster: [...c.roster, ...add] } : c;
+  let roster = add.length ? [...c.roster, ...add] : c.roster;
+  const aw = ch.awaken;
+  if (aw && roster.some(u => u.id === aw.id && u.classId !== aw.classId)) {
+    roster = roster.map(u => (u.id === aw.id ? { ...u, classId: aw.classId, stones: Math.min(MAX_STONES, (u.stones ?? 0) + aw.stones) } : u));
+  }
+  return roster === c.roster ? c : { ...c, roster };
 }
+
+/** Whether a campaign has a story flag. */
+export const hasFlag = (c: Pick<Campaign, 'flags'>, flag: string): boolean => (c.flags ?? []).includes(flag);
+
+/** The chapter after this one, skipping side chapters the campaign has not unlocked. CHAPTERS.length means the story is over. */
+export function nextChapter(c: Pick<Campaign, 'flags'>, chapterIndex: number): number {
+  let n = chapterIndex + 1;
+  while (n < CHAPTERS.length && CHAPTERS[n].requires && !hasFlag(c, CHAPTERS[n].requires!)) n++;
+  return n;
+}
+
+/** Dialogue lines this campaign should see: a line with `when` needs that character in the army, or that flag. */
+export const linesFor = <T extends { when?: string }>(c: Pick<Campaign, 'flags' | 'roster'>, lines: T[]): T[] =>
+  lines.filter(l => !l.when || hasFlag(c, l.when) || c.roster.some(u => u.id === l.when));
 
 export function mergeBattle(c: Campaign, r: BattleResult, chapterIndex: number): Campaign {
   const fallenIds = new Set(r.fallen.map(u => u.id));
@@ -35,10 +57,12 @@ export function mergeBattle(c: Campaign, r: BattleResult, chapterIndex: number):
   }
   const bonds = { ...c.bonds };
   for (const [k, v] of Object.entries(r.bondGains)) bonds[k] = (bonds[k] ?? 0) + v;
+  const bonus = r.alliesSaved ? CHAPTERS[chapterIndex].allyReward : undefined;
   return {
     ...c, roster, bonds,
     fallen: c.mode === 'classic' ? [...c.fallen, ...[...fallenIds]] : c.fallen,
-    gold: c.gold + r.gold + CHAPTERS[chapterIndex].reward,
+    gold: c.gold + r.gold + CHAPTERS[chapterIndex].reward + (bonus?.gold ?? 0),
+    flags: bonus && !hasFlag(c, bonus.flag) ? [...(c.flags ?? []), bonus.flag] : c.flags,
   };
 }
 

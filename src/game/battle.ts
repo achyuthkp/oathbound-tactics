@@ -5,7 +5,7 @@ import { canAttackAt, counterWeapon, forecast, rollCombat, type Forecast, type R
 import { HEAL_EXP, combatExp, gainExp } from './progression';
 import { computeReach, manhattan, moveCost, unitAt } from './pathfinding';
 import type { BattleState, Chapter, House, Pos, Stats, Team, TerrainId, Unit } from './types';
-import { MAX_POTIONS, POTION_HEAL, canTake, giveItem, picksOf, type TradeItem, wear, attackWeapons, clone, goldValue, makeEnemy, makeWeapon, sellPrice, shiftToDragon, shiftToHuman, staffIndex, wdef } from './units';
+import { FORMS, MAX_POTIONS, POTION_HEAL, canTake, foes, giveItem, type Form, picksOf, type TradeItem, wear, attackWeapons, clone, goldValue, makeEnemy, makeWeapon, sellPrice, shiftToDragon, shiftToHuman, staffIndex, wdef } from './units';
 import { WEAPONS } from './data/weapons';
 import { CHARACTERS } from './data/characters';
 import { CLASSES } from './data/classes';
@@ -35,6 +35,8 @@ export interface BattleResult {
   turns: number;
   /** Characters recruited from houses during the battle. */
   recruits: string[];
+  /** The chapter had green allies and every one of them lived. */
+  alliesSaved?: boolean;
 }
 
 export function parseMap(rows: string[]): TerrainId[][] {
@@ -48,6 +50,21 @@ function log(s: BattleState, line: string) {
 /** The chapter a battle is played on: a story chapter, or a custom (challenge) map carried in the state. */
 export const chapterOf = (s: Pick<BattleState, 'chapterIndex' | 'custom'>): Chapter => s.custom ?? CHAPTERS[s.chapterIndex];
 
+/** Units that must fight in a chapter: Kael, and whoever joins in it. */
+export const mustDeploy = (ch: Chapter, u: Pick<Unit, 'id' | 'isLord'>): boolean => !!u.isLord || !!ch.recruits?.includes(u.id);
+/** How many units a chapter can deploy. */
+export const deploySlots = (ch: Chapter): number => Math.min(ch.playerStarts.length, MAX_UNITS_PER_SIDE);
+/**
+ * The default line-up for a chapter: Kael, then whoever joins in it (both always fight), then
+ * everyone not left in reserve, in roster order, up to the chapter's slots. The preparation screen starts from this.
+ */
+export function defaultLineup(ch: Chapter, roster: Unit[]): string[] {
+  const fresh = (u: Unit) => Number(!!ch.recruits?.includes(u.id));
+  return roster.filter(u => u.hp > 0 && (!u.reserve || u.isLord || fresh(u)))
+    .sort((a, b) => Number(!!b.isLord) - Number(!!a.isLord) || fresh(b) - fresh(a))
+    .slice(0, deploySlots(ch)).map(u => u.id);
+}
+
 /**
  * Start a battle. A story chapter deploys the roster onto its start tiles, lord first. A custom map
  * (`custom`) is played with exactly the units given, already standing where its author put them.
@@ -55,7 +72,8 @@ export const chapterOf = (s: Pick<BattleState, 'chapterIndex' | 'custom'>): Chap
 export function createBattle(chapterIndex: number, roster: Unit[], ranks: Record<string, number>, custom?: Chapter): BattleState {
   const ch = custom ?? CHAPTERS[chapterIndex];
   const map = parseMap(ch.map);
-  const ordered = [...roster].filter(u => u.hp > 0 && (!u.reserve || u.isLord)).sort((a, b) => Number(!!b.isLord) - Number(!!a.isLord));
+  const fresh = (u: Unit) => Number(!!ch.recruits?.includes(u.id));
+  const ordered = [...roster].filter(u => u.hp > 0 && (!u.reserve || u.isLord || fresh(u))).sort((a, b) => Number(!!b.isLord) - Number(!!a.isLord) || fresh(b) - fresh(a));
   const players: Unit[] = custom
     ? roster.slice(0, MAX_UNITS_PER_SIDE).map(u => ({ ...clone(u), team: 'player', done: false }))
     : ordered.slice(0, Math.min(ch.playerStarts.length, MAX_UNITS_PER_SIDE)).map((u, i) => ({
@@ -63,9 +81,10 @@ export function createBattle(chapterIndex: number, roster: Unit[], ranks: Record
     }));
   let n = 0;
   const enemies = ch.enemies.slice(0, MAX_UNITS_PER_SIDE).map(sp => makeEnemy(sp, `e${++n}`));
+  const allies = (ch.allies ?? []).map((sp, i) => makeEnemy({ ai: 'hold', ...sp }, `a${i + 1}`, 'ally'));
   return {
     chapterIndex, map, width: map[0].length, height: map.length,
-    units: [...players, ...enemies], turn: 1, phase: 'player', ranks: { ...ranks },
+    units: [...players, ...allies, ...enemies], turn: 1, phase: 'player', ranks: { ...ranks },
     bondGains: {}, goldEarned: 0, kills: 0, fallenUnits: [],
     log: [ch.number ? `Chapter ${ch.number}: ${ch.title}` : ch.title], custom, seized: false, enemyCounter: n, visited: [], burned: [], opened: [], recruited: [],
   };
@@ -77,8 +96,15 @@ export function toResult(s: BattleState): BattleResult {
   return {
     units: s.units.filter(u => u.team === 'player').map(human), fallen: s.fallenUnits.map(human),
     bondGains: s.bondGains, gold: s.goldEarned, kills: s.kills, turns: s.turn, recruits: s.recruited ?? [],
+    alliesSaved: alliesSaved(s),
   };
 }
+
+/** The chapter has green allies and none has fallen. */
+export const alliesSaved = (s: BattleState): boolean => {
+  const n = chapterOf(s).allies?.length ?? 0;
+  return n > 0 && s.units.filter(u => u.team === 'ally').length === n;
+};
 
 export type Outcome = 'ongoing' | 'victory' | 'defeat';
 
@@ -98,14 +124,14 @@ export function outcome(s: BattleState): Outcome {
 
 export function attackableTargets(s: BattleState, u: Unit): Unit[] {
   const ws = attackWeapons(u);
-  return s.units.filter(t => t.team !== u.team && t.hp > 0 && ws.some(i => canAttackAt(u, i, manhattan(u, t))));
+  return s.units.filter(t => foes(t, u) && t.hp > 0 && ws.some(i => canAttackAt(u, i, manhattan(u, t))));
 }
 
 export function healTargets(s: BattleState, u: Unit): Unit[] {
   const si = staffIndex(u);
   if (si < 0) return [];
   const w = wdef(u.weapons[si]);
-  return s.units.filter(t => t.team === u.team && t.id !== u.id && t.hp < t.stats.hp &&
+  return s.units.filter(t => !foes(t, u) && t.id !== u.id && t.hp < t.stats.hp &&
     manhattan(u, t) >= w.minRange && manhattan(u, t) <= w.maxRange);
 }
 
@@ -178,6 +204,8 @@ export function applyAttack(state: BattleState, attId: string, defId: string, we
       s.goldEarned += g;
       s.kills += 1;
       log(s, `${u.name} was defeated. +${g} gold.${recover(s, u, u === att ? def : att)}`);
+    } else if (u.team === 'ally') {
+      log(s, `${u.name}, fighting beside you, has fallen.`);
     } else {
       s.fallenUnits.push(clone(u));
       log(s, `${u.name} has fallen.`);
@@ -355,14 +383,19 @@ export function applyOpen(state: BattleState, unitId: string, at: Pos, tool: Too
 /* ---------- trading ---------- */
 
 export type { TradeItem };
-/** Allies standing next to a unit. */
-export const tradePartners = (s: BattleState, u: Unit): Unit[] => s.units.filter(t => t.team === u.team && t.id !== u.id && manhattan(t, u) === 1);
+/** Units a player unit can trade with: its own side, and green allies (who can only be handed vulneraries). */
+export const tradePartners = (s: BattleState, u: Unit): Unit[] =>
+  s.units.filter(t => (t.team === u.team || (u.team === 'player' && t.team === 'ally')) && t.id !== u.id && manhattan(t, u) === 1);
+
+/** Whether this item may pass from a to b: anything between units of one side; only a vulnerary from a player unit to a green ally. */
+export const tradeAllowed = (a: Unit, b: Unit, item: TradeItem): boolean =>
+  a.team === b.team || (a.team === 'player' && b.team === 'ally' && item.kind === 'potions');
 
 /** Hand one item to an adjacent ally with room for it. Personal weapons stay with their owner. */
 export function applyTrade(state: BattleState, fromId: string, toId: string, item: TradeItem): BattleState | null {
   const s = clone(state);
   const a = s.units.find(x => x.id === fromId), b = s.units.find(x => x.id === toId);
-  if (!a || !b || a.team !== b.team || manhattan(a, b) !== 1) return null;
+  if (!a || !b || !tradeAllowed(a, b, item) || manhattan(a, b) !== 1) return null;
   const what = giveItem(a, b, item);
   if (!what) return null;
   log(s, `${a.name} gave ${b.name} a ${what}.`);
@@ -382,7 +415,7 @@ export function stealOptions(s: BattleState, u: Unit): StealOption[] {
   if (!CLASSES[u.classId]?.steals) return [];
   const out: StealOption[] = [];
   for (const t of s.units) {
-    if (t.team === u.team || manhattan(t, u) !== 1 || t.stats.spd > u.stats.spd) continue;
+    if (!foes(t, u) || manhattan(t, u) !== 1 || t.stats.spd > u.stats.spd) continue;
     if (canTake(u)) {
       // the weapon in hand is harder: the thief must be 4 faster
       const disarm = u.stats.spd >= t.stats.spd + 4;
@@ -417,13 +450,13 @@ export function applySteal(state: BattleState, unitId: string, opt: StealOption)
 
 export const canTransform = (u: Unit): boolean => !!CLASSES[u.classId]?.shifts && !u.dragon && (u.stones ?? 0) > 0;
 
-/** Spend a dragonstone and take dragon form. Uses the unit's action. */
-export function applyTransform(state: BattleState, unitId: string): BattleState | null {
+/** Spend a dragonstone and take dragon form. Uses the unit's action. A Dragon Sage names the kind of dragon (`form`). */
+export function applyTransform(state: BattleState, unitId: string, form?: Form): BattleState | null {
   const s = clone(state);
   const u = s.units.find(x => x.id === unitId);
-  if (!u || !canTransform(u)) return null;
-  shiftToDragon(u);
-  log(s, `${u.name} takes dragon form.`);
+  if (!u || !canTransform(u) || (form && !FORMS.includes(form))) return null;
+  shiftToDragon(u, form);
+  log(s, `${u.name} takes ${CLASSES[u.classId].forms ? `the form of a ${form ?? 'fire'} dragon` : 'dragon form'}.`);
   return s;
 }
 
@@ -472,10 +505,11 @@ function terrainHeal(s: BattleState, team: Team): { unitId: string; amount: numb
 
 export function endPlayerPhase(state: BattleState): { state: BattleState; heals: { unitId: string; amount: number }[] } {
   const s = clone(state);
-  s.phase = 'enemy';
-  for (const u of s.units) if (u.team === 'enemy') u.done = false;
+  s.phase = 'enemy'; // the green allies move first, then the enemy
+  for (const u of s.units) if (u.team !== 'player') u.done = false;
+  tickDragons(s, 'ally');
   tickDragons(s, 'enemy');
-  const heals = terrainHeal(s, 'enemy');
+  const heals = [...terrainHeal(s, 'ally'), ...terrainHeal(s, 'enemy')];
   return { state: s, heals };
 }
 

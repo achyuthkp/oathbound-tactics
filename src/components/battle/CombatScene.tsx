@@ -26,7 +26,7 @@ const other = (r: Role): Role => (r === 'att' ? 'def' : 'att');
  * The player's unit is always on the left facing right. Click or press Space to skip.
  */
 export function CombatScene({ att, def, fc, strikes, terrain, onDone }: Props) {
-  const leftRole: Role = att.team === 'player' ? 'att' : 'def';
+  const leftRole: Role = att.team !== 'enemy' ? 'att' : 'def';
   const [poses, setPoses] = useState<Record<Role, Pose>>({ att: standPose(att.hp, att.stats.hp), def: standPose(def.hp, def.stats.hp) });
   const [nonce, setNonce] = useState<Record<Role, number>>({ att: 0, def: 0 });
   const [hp, setHp] = useState({ att: att.hp, def: def.hp });

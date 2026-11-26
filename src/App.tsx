@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CHAPTERS } from './game/data/chapters';
 import type { BattleResult } from './game/battle';
-import { addRecruits, enterCamp, mergeBattle, newCampaign } from './game/campaign';
+import { addRecruits, enterCamp, linesFor, mergeBattle, newCampaign, nextChapter } from './game/campaign';
 import { latestSave, readSave, slotLabel, writeSave, type SaveData, type SlotId } from './game/saves';
 import type { BattleState, Campaign, GameMode } from './game/types';
 import { listChallenges, playerUnits, recordClear, toChapter, type ChallengeMap } from './game/challenge';
@@ -10,7 +10,8 @@ import { MapBuilder } from './components/MapBuilder';
 import { BattleScreen, type SaveSource } from './components/battle/BattleScreen';
 import { CampScreen } from './components/camp/CampScreen';
 import { SaveMenu } from './components/SaveMenu';
-import { EndingScreen, GameOverScreen, TitleScreen } from './components/Screens';
+import { EndingScreen, GameOverScreen, PrepScreen, TitleScreen } from './components/Screens';
+import { deploySlots } from './game/battle';
 import { StoryScene } from './components/StoryScene';
 import { WorldMap } from './components/WorldMap';
 
@@ -18,6 +19,7 @@ type Screen =
   | { kind: 'title' }
   | { kind: 'travel'; chapterIndex: number }
   | { kind: 'story'; chapterIndex: number; part: 'pre' | 'post' }
+  | { kind: 'prep'; chapterIndex: number }
   | { kind: 'battle'; chapterIndex: number; attempt: number; resume?: BattleState }
   | { kind: 'camp' }
   | { kind: 'gameover'; chapterIndex: number }
@@ -54,8 +56,15 @@ export default function App() {
 
   const newGame = (mode: GameMode) => startChapter(newCampaign(mode), 0);
 
-  const beginBattle = (chapterIndex: number) => {
-    snapshot.current = campaign;
+  /** More companions than the chapter can field: choose who deploys first. */
+  const toBattle = (chapterIndex: number) => {
+    const able = (campaign?.roster ?? []).filter(u => u.hp > 0).length;
+    if (able > deploySlots(CHAPTERS[chapterIndex])) setScreen({ kind: 'prep', chapterIndex });
+    else beginBattle(chapterIndex);
+  };
+
+  const beginBattle = (chapterIndex: number, c: Campaign | null = campaign) => {
+    snapshot.current = c;
     attempts.current += 1;
     setScreen({ kind: 'battle', chapterIndex, attempt: attempts.current });
   };
@@ -68,8 +77,9 @@ export default function App() {
 
   const afterPost = (chapterIndex: number) => {
     if (!campaign) return;
-    if (chapterIndex >= CHAPTERS.length - 1) { setScreen({ kind: 'ending' }); return; }
-    const c = enterCamp(campaign, chapterIndex + 1);
+    const next = nextChapter(campaign, chapterIndex);
+    if (next >= CHAPTERS.length) { setScreen({ kind: 'ending' }); return; }
+    const c = enterCamp(campaign, next);
     setCampaign(c);
     writeSave('auto', 'camp', c);
     setScreen({ kind: 'camp' });
@@ -173,15 +183,32 @@ export default function App() {
       body = (
         <StoryScene
           key={`${screen.chapterIndex}-${screen.part}`}
-          lines={pre ? ch.pre : ch.post}
-          heading={pre ? `Chapter ${ch.number}` : undefined}
+          lines={linesFor(campaign ?? { roster: [] }, pre ? ch.pre : ch.post)}
+          heading={pre ? (ch.requires ? 'Side chapter' : `Chapter ${ch.number}`) : undefined}
           subheading={pre ? ch.title : undefined}
           backdrop={ch.backdrop}
-          onDone={() => (pre ? beginBattle(screen.chapterIndex) : afterPost(screen.chapterIndex))}
+          onDone={() => (pre ? toBattle(screen.chapterIndex) : afterPost(screen.chapterIndex))}
         />
       );
       break;
     }
+    case 'prep':
+      body = campaign ? (
+        <PrepScreen
+          key={`prep-${screen.chapterIndex}`}
+          chapter={CHAPTERS[screen.chapterIndex]}
+          roster={campaign.roster}
+          onStart={ids => {
+            // the line-up goes back to the roster as the marching order, so camp shows it too
+            const picked = ids.map(id => campaign.roster.find(u => u.id === id)!);
+            const rest = campaign.roster.filter(u => !ids.includes(u.id));
+            const c = { ...campaign, roster: [...picked.map(u => ({ ...u, reserve: false })), ...rest.map(u => ({ ...u, reserve: !u.isLord }))] };
+            setCampaign(c);
+            beginBattle(screen.chapterIndex, c);
+          }}
+        />
+      ) : null;
+      break;
     case 'battle':
       body = campaign ? (
         <BattleScreen

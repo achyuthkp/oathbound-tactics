@@ -109,6 +109,17 @@ export const PROFILES: Record<string, Profile> = {
     quote: 'The sky doesn\'t care whose banner is flying. I do.',
     design: 'Wings flap continuously and the whole model hovers, so she always reads as airborne. The pale palette stands out against the darker cast.',
   },
+  vesper: {
+    id: 'vesper', name: 'Vesper', title: 'Keeper of the Drowned Archive', age: '26', classId: 'mage', height: '168 cm', side: 'ally',
+    origin: 'The last keeper of the archive in the sea caves under Saltmere, where the old kingdom kept everything it knew about dragons. The Ashen Legion came to burn it. At Deepforge she learns that a dragonstone answers her, and that she can make it into almost any dragon she likes. Light is beyond her.',
+    personality: 'Precise, bookish and quietly reckless. Asks questions nobody wants to answer, and writes the answers down.',
+    appearance: 'Plum hair tied back with a quill through it, ink-stained violet robes, freckles, sea-green eyes, a satchel of tomes.',
+    combat: 'Casts Fire, Thunder and Blizzard at one or two tiles, outside the weapon triangle. From chapter 7 a Dragon Sage: each dragonstone becomes whichever dragon the fight needs. Carries at most three stones.',
+    likes: 'Footnotes, rainstorms, being right about dragons.',
+    dislikes: 'Fire near books, people who skim.',
+    quote: 'Every dragon in the archive is a chapter. I intend to read them all.',
+    design: 'Violet against the cast\'s blues and reds, so the only magic user reads at a glance. In dragon form she takes the chosen element\'s colours.',
+  },
   gorran: {
     id: 'gorran', name: 'Gorran', title: 'Brigand Chief', age: '37', classId: 'brigand', height: '188 cm', side: 'enemy',
     origin: 'A deserter from the border war who turned raider. He sells villages, roads and rumours to whoever pays, lately Malrec.',
@@ -148,6 +159,26 @@ export const PROFILES: Record<string, Profile> = {
     likes: 'Order, silence, being right.', dislikes: 'Songs.',
     quote: 'I ended a dynasty of dreamers.',
     design: 'Black and ember against Kael\'s blue and gold. The crown is the only gold on any enemy, so he reads as a usurper at a glance.',
+  },
+  hesk: {
+    id: 'hesk', name: 'Commodore Hesk', title: 'Commodore of the Ashen Legion', age: '44', classId: 'wyvern', height: '180 cm', side: 'enemy',
+    origin: 'A smuggler Malrec made an admiral. He holds Saltmere\'s harbour for the Legion and ships Deepforge\'s iron down the coast.',
+    personality: 'Loud, superstitious and quick to blame the sea for his own mistakes.',
+    appearance: 'Weathered face, salt-stiff leathers in Legion black and ember, a steel axe and a scarred red wyvern.',
+    combat: 'Holds the harbour fort in Chapter 6. A flier: bows and wind breath bring him down.',
+    likes: 'Fair winds, other people\'s cargo.', dislikes: 'Things under the water.',
+    quote: 'If the sea-witch surfaces again, I want her on a chain.',
+    design: 'The Legion\'s black and ember rather than Imperial red, so Malrec\'s own men read apart from the Empire\'s.',
+  },
+  druss: {
+    id: 'druss', name: 'Overseer Druss', title: 'Overseer of Deepforge', age: '51', classId: 'knight', height: '178 cm', side: 'enemy',
+    origin: 'A mine foreman who sold his own town to Malrec for a title. He drives Deepforge\'s miners to dig east toward the Dark Dragon\'s seal.',
+    personality: 'Petty, greedy and careful never to be anywhere dangerous.',
+    appearance: 'A closed helm, soot-black plate with ember trim, a silver lance he has never had to use.',
+    combat: 'Sits in the lift-hall chair in Chapter 7. Armoured: hammers and stone breath break him.',
+    likes: 'Quotas, bonuses.', dislikes: 'Daylight, complaints.',
+    quote: 'The king wants his tunnel, and I want my bonus.',
+    design: 'A Legion knight in soot black, the same armour template as Varn so the Legion reads as one force.',
   },
 };
 
@@ -235,6 +266,7 @@ export const ARCHETYPES: Record<string, Profile> = Object.fromEntries(([
   ['thief', 'Ashen Cutpurse', 'Camp followers who slip into a castle ahead of the army for whatever is not nailed down.', 'They head straight for the treasure chests and empty them. Defeat one that has looted and it drops everything it took.'],
   ['manakete', 'Bound Dragonkin', 'One of the old dragon-blooded, its mind bound to Malrec\'s will by the stolen power of the Dark Dragon.', 'Harmless until it changes shape, which it does the moment you come close. As a dragon it breathes fire two tiles and shrugs off most blows; wait it out or bring it down fast.'],
   ['wyvern', 'Imperial Wyvern Rider', 'The Ashen Empire\'s heavy cavalry of the air, mounted on red wyverns bred in the northern mountains.', 'Axes from above. Tough and hard-hitting but slow; bows bring them down and swords out-duel them.'],
+  ['mage', 'Legion Mage', 'Malrec\'s own battle-scholars, taught from books stolen out of Aldmere\'s libraries.', 'Spells from one or two tiles, outside the weapon triangle. Fragile: close in fast.'],
   ['skyknight', 'Imperial Sky Knight', 'Pegasus riders taken from conquered kingdoms\' stables.', 'Fly over terrain. Weak to bows.'],
 ] as const).map(([id, name, origin, combat]) => [id, {
   id, name, title: 'Enemy unit', age: 'Late 20s to 30s', classId: id, height: 'Varies', side: 'archetype' as const,
@@ -246,7 +278,7 @@ export function profileFor(u: { id: string; classId: string; lookId?: string }):
   return PROFILES[u.lookId ?? u.id] ?? ARCHETYPES[u.classId];
 }
 
-export const ALLY_IDS = ['kael', 'lyra', 'brann', 'seren', 'mira', 'tomas', 'rei', 'ilse', 'osric', 'pip', 'sable'];
-export const NPC_IDS = ['gorran', 'varn', 'morwen', 'malrec'];
+export const ALLY_IDS = ['kael', 'lyra', 'brann', 'seren', 'mira', 'tomas', 'rei', 'ilse', 'osric', 'pip', 'sable', 'nerys', 'garrow'];
+export const NPC_IDS = ['gorran', 'varn', 'morwen', 'malrec', 'hesk', 'druss'];
 /** Companions drawn and playable (sprite browser, challenge mode) but not yet met in the story; kept out of the title-screen codex to avoid spoilers. */
-export const LATER_IDS = ['nerys', 'garrow', 'kestrel', 'aurelie'];
+export const LATER_IDS = ['kestrel', 'aurelie', 'vesper'];

@@ -43,6 +43,10 @@ const LIST: WeaponDef[] = [
   { id: 'heal', name: 'Heal Staff', type: 'staff', might: 0, hit: 100, crit: 0, weight: 2, ...melee, price: 500, tier: 1, heal: 10 },
   { id: 'mend', name: 'Mend Staff', type: 'staff', might: 0, hit: 100, crit: 0, weight: 3, ...melee, price: 1100, tier: 2, heal: 20 },
   { id: 'oak_staff', name: 'Oaken Staff', type: 'staff', might: 0, hit: 100, crit: 0, weight: 2, ...melee, price: 0, tier: 99, heal: 25, desc: 'Carved by Brann.' },
+  // Tomes — magic, range 1–2, outside the triangle. Each spell is a step up in power and in skill to aim it.
+  { id: 'fire_tome', name: 'Fire', type: 'tome', might: 5, hit: 90, crit: 0, weight: 4, minRange: 1, maxRange: 2, price: 600, tier: 1, desc: 'The first spell every mage learns. Reliable.' },
+  { id: 'thunder_tome', name: 'Thunder', type: 'tome', might: 8, hit: 80, crit: 5, weight: 6, minRange: 1, maxRange: 2, price: 1100, tier: 2, desc: 'A crack of lightning. Harder to aim, harder hitting.' },
+  { id: 'blizzard_tome', name: 'Blizzard', type: 'tome', might: 11, hit: 70, crit: 0, weight: 9, minRange: 1, maxRange: 2, price: 2000, tier: 3, desc: 'A storm of ice. The heaviest spell in the book.' },
 ];
 
 export const WEAPONS: Record<string, WeaponDef> = Object.fromEntries(LIST.map(w => [w.id, w]));

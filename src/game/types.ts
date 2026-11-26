@@ -1,5 +1,6 @@
-export type WeaponType = 'sword' | 'lance' | 'axe' | 'bow' | 'staff' | 'breath';
-export type Team = 'player' | 'enemy';
+export type WeaponType = 'sword' | 'lance' | 'axe' | 'bow' | 'staff' | 'breath' | 'tome';
+/** 'ally': green units on the player's side that act on their own (the Ally phase, between player and enemy). */
+export type Team = 'player' | 'enemy' | 'ally';
 export type MoveType = 'foot' | 'armor' | 'horse' | 'flying';
 export type TerrainId =
   | 'plains' | 'road' | 'forest' | 'hills' | 'mountain' | 'water' | 'desert' | 'wall' | 'fort' | 'bridge' | 'throne' | 'house' | 'building' | 'ruins' | 'chest' | 'door' | 'gate' | 'doorway' | 'gateway';
@@ -39,6 +40,8 @@ export interface WeaponInstance {
   uses?: number;
   /** Taken by an enemy thief; whoever defeats the thief gets it back. */
   stolen?: boolean;
+  /** Only exists while in dragon form (a Dragon Sage's chosen breath); removed on changing back. */
+  temp?: boolean;
 }
 
 export interface ClassDef {
@@ -53,6 +56,8 @@ export interface ClassDef {
   steals?: boolean;
   /** This class takes dragon form by spending a dragonstone. */
   shifts?: boolean;
+  /** Chooses which kind of dragon to become on each transformation, instead of carrying one breath. */
+  forms?: boolean;
   base: Stats;
   growth: Stats;
   desc: string;
@@ -119,7 +124,8 @@ export interface EnemySpawn {
 export interface Reinforcement { turn: number; units: EnemySpawn[]; }
 
 export type Mood = 'neutral' | 'happy' | 'angry' | 'sad' | 'surprised';
-export interface DialogueLine { speaker: string; text: string; mood?: Mood; }
+/** `when`: only shown if the army has this character, or the campaign has this flag. */
+export interface DialogueLine { speaker: string; text: string; mood?: Mood; when?: string; }
 
 /** A house a player unit can visit once, by ending a move on it. Exactly one reward. */
 export interface House {
@@ -155,6 +161,14 @@ export interface Chapter {
   backdrop: string;
   /** How the player loses: the lord (leader) falling, the default, or the whole army falling. */
   loseRule?: 'leader' | 'all';
+  /** Green units fighting on the player's side, moved by the game. */
+  allies?: EnemySpawn[];
+  /** Paid, and the flag set, if every ally is alive at victory. */
+  allyReward?: { gold: number; flag: string };
+  /** A side chapter: only played when the campaign has this flag, otherwise skipped. */
+  requires?: string;
+  /** At the start of this chapter, this character changes class and gains dragonstones. */
+  awaken?: { id: string; classId: string; stones: number };
 }
 
 export type RankLetter = 'C' | 'B' | 'A' | 'S';
@@ -180,6 +194,8 @@ export interface Campaign {
   bonds: Record<string, number>;
   ranks: Record<string, number>;
   ap: number;
+  /** Story flags earned along the way (side chapters unlocked). */
+  flags?: string[];
 }
 
 export interface BattleState {

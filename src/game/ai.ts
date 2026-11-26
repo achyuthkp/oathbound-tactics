@@ -2,7 +2,7 @@ import { TERRAIN } from './data/terrain';
 import { EFFECTIVE_MULT, canAttackAt, forecast, type Forecast } from './combat';
 import { computeReach, destinations, key, manhattan, pathTo, unitAt, type ReachNode } from './pathfinding';
 import type { BattleState, Pos, Unit } from './types';
-import { attackWeapons, classOf, isFlying, movOf, wdef } from './units';
+import { attackWeapons, classOf, foes, isFlying, movOf, wdef } from './units';
 import { canTransform, openChests, openHouses, openTools, shutDoors, stealOptions, type StealOption } from './battle';
 import { WEAPONS } from './data/weapons';
 
@@ -18,6 +18,8 @@ export interface AIPlan {
   transform?: boolean;
   /** A thief ends its move beside a player unit and takes this. */
   steal?: StealOption;
+  /** Drinks a vulnerary where it stands. */
+  potion?: boolean;
 }
 
 /** Walk a route as far as this turn's movement allows, stopping on the last free tile. */
@@ -69,7 +71,7 @@ function buildThreats(s: BattleState, unit: Unit): ThreatSource[] {
   const moveType = classOf(unit).moveType;
   const out: ThreatSource[] = [];
   for (const foe of s.units) {
-    if (foe.team === unit.team || foe.hp <= 0) continue;
+    if (!foes(foe, unit) || foe.hp <= 0) continue;
     const reach = computeReach(s, foe);
     const tiles = new Set<number>();
     let dmg = 0;
@@ -139,6 +141,8 @@ function scoreAttack(s: BattleState, fc: Forecast, unit: Unit, target: Unit, at:
  *    empties it, picking a door on the way if the chests are locked in, then fights like an aggressive unit. Defeating it returns what it took.
  */
 export function planEnemy(s: BattleState, unit: Unit): AIPlan {
+  // a green ally that is badly hurt drinks a vulnerary the army handed it
+  if (unit.team === 'ally' && unit.potions > 0 && unit.hp <= unit.stats.hp * 0.4) return { unitId: unit.id, path: [{ x: unit.x, y: unit.y }], potion: true };
   if (unit.ai === 'raid' && classOf(unit).raids) {
     const go = planGoTo(s, unit, openHouses(s));
     if (go) return { unitId: unit.id, path: go.path, raid: go.arrived };
@@ -167,7 +171,7 @@ export function planEnemy(s: BattleState, unit: Unit): AIPlan {
     if (best) return { unitId: unit.id, path: pathTo(reach, best.to.x, best.to.y), steal: best.opt };
   }
   // a dragonkin with a stone left changes shape as soon as a fight is close
-  if (canTransform(unit) && s.units.some(t => t.team !== unit.team && manhattan(t, unit) <= movOf(unit))) {
+  if (canTransform(unit) && s.units.some(t => foes(t, unit) && manhattan(t, unit) <= movOf(unit))) {
     return { unitId: unit.id, path: [{ x: unit.x, y: unit.y }], transform: true };
   }
   const here = { x: unit.x, y: unit.y };
@@ -175,7 +179,7 @@ export function planEnemy(s: BattleState, unit: Unit): AIPlan {
   const reach = computeReach(s, unit);
   const dests = unit.ai === 'hold' ? [here] : destinations(s, unit, reach);
   const weapons = attackWeapons(unit);
-  const targets = s.units.filter(u => u.team !== unit.team && u.hp > 0);
+  const targets = s.units.filter(u => foes(u, unit) && u.hp > 0);
   const threats = buildThreats(s, unit);
 
   let best: { score: number; to: Pos; targetId: string; widx: number } | null = null;

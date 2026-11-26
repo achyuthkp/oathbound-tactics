@@ -87,6 +87,7 @@ export function UnitCard({ u, state, compact }: { u: Unit; state?: BattleState; 
             {!!u.loot && <li className="potion">Carrying {u.loot} gold of plunder</li>}
           </ul>
           {bond > 0 && <div className="uc-bond">Bond support: +{bond} hit / avoid</div>}
+          {u.team === 'ally' && <div className="uc-ai">Ally — fights on its own. Heal it or hand it a vulnerary to keep it alive</div>}
           {u.team === 'enemy' && u.ai && <div className="uc-ai">{u.ai === 'aggressive' ? 'Advancing' : u.ai === 'guard' ? 'Guarding — attacks if you come in range' : u.ai === 'loot' ? 'Looting — heading for a treasure chest. Defeat it to get the treasure back' : u.ai === 'raid' ? 'Raiding — heading for a house to burn it. Stand on the house to protect it' : 'Holding position'}</div>}
         </>
       )}

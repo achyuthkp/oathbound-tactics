@@ -220,7 +220,7 @@ export function WorldMap({ chapterIndex, roster, onDone }: Props) {
       <footer className="wm-bar">
         <div>
           <span className="wm-from">{PLACES[route.from].name} to {PLACES[route.to].name}</span>
-          <strong>Chapter {chapter.number}: {chapter.title}</strong>
+          <strong>{chapter.requires ? 'Side chapter' : `Chapter ${chapter.number}`}: {chapter.title}</strong>
           <span>{chapter.objectiveText}</span>
         </div>
         <button className={arrived ? 'primary' : 'ghost'} onClick={finish}>{arrived ? 'Continue' : 'Skip'}</button>

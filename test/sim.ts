@@ -14,10 +14,10 @@ import { bondBonus } from '../src/game/combat';
 import { planEnemy } from '../src/game/ai';
 import { forecast } from '../src/game/combat';
 import { manhattan } from '../src/game/pathfinding';
-import { applyAttack, applyBurn, applyHeal, applyOpen, applyTransform, createBattle, endEnemyPhase, endPlayerPhase, applySteal, healTargets, markDone, outcome, parseMap, shutDoors, stealOptions, toResult } from '../src/game/battle';
-import { makeEnemy } from '../src/game/units';
+import { defaultLineup, deploySlots, alliesSaved, applyTrade, attackableTargets, applyAttack, applyBurn, applyHeal, applyOpen, applyTransform, createBattle, endEnemyPhase, endPlayerPhase, applySteal, healTargets, markDone, outcome, parseMap, shutDoors, stealOptions, toResult } from '../src/game/battle';
+import { attackWeapons, makeEnemy, shiftToHuman } from '../src/game/units';
 import { defaultEnemy, exportChallenge, newChallenge, parseChallenge, playerUnits, problems, resize, setTile, toChapter, type ChallengeMap } from '../src/game/challenge';
-import { addRecruits, enterCamp, mergeBattle, newCampaign, romanceFull } from '../src/game/campaign';
+import { addRecruits, enterCamp, linesFor, mergeBattle, newCampaign, nextChapter, romanceFull } from '../src/game/campaign';
 import { gainExp } from '../src/game/progression';
 import type { BattleState, Campaign } from '../src/game/types';
 
@@ -68,6 +68,7 @@ CHAPTERS.forEach((ch, ci) => {
   };
   ch.playerStarts.forEach((p, i) => check(p.x, p.y, 'cavalier', `start${i}`));
   ch.enemies.forEach((e, i) => { check(e.x, e.y, e.classId, `enemy${i}`); e.weapons.forEach(w => !WEAPONS[w] && fail(`weapon ${w}`)); });
+  (ch.allies ?? []).forEach((e, i) => check(e.x, e.y, e.classId, `ally${i}`));
   if (ch.enemies.length > 10) fail(`ch${ci} too many enemies`);
   for (const sp of [...ch.enemies, ...(ch.reinforcements ?? []).flatMap(r => r.units)]) {
     if (sp.ai === 'raid' && !CLASSES[sp.classId].raids) fail(`ch${ci} ${sp.classId} cannot raid; only brigands burn houses`);
@@ -249,7 +250,8 @@ const findRoot = (from: string): string => {
     const count = /\b(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:story\s+)?chapters\b/i.exec(text);
     if (count) {
       const n = words[count[1].toLowerCase()] ?? Number(count[1]);
-      if (n !== CHAPTERS.length) fail(`docs: ${docName} says "${count[0]}", CHAPTERS has ${CHAPTERS.length}`);
+      const story = CHAPTERS.filter(c => !c.requires).length; // side chapters are not counted
+      if (n !== story) fail(`docs: ${docName} says "${count[0]}", the story has ${story} chapters`);
     }
 
     const table = docTable(lines, ['Chapter', 'Houses']);
@@ -265,7 +267,7 @@ const findRoot = (from: string): string => {
         const n = Number(m[1]);
         if (listed.has(n)) fail(`docs: ${docName} lists chapter ${n} twice`);
         listed.add(n);
-        const ch = CHAPTERS.find(c => c.number === n);
+        const ch = CHAPTERS.find(c => c.number === n && !c.requires);
         if (!ch) { fail(`docs: ${docName} chapter ${n} is not in CHAPTERS`); continue; }
         const cell = row[housesCol].trim();
         const lead = /^(\d+)/.exec(cell);
@@ -277,7 +279,7 @@ const findRoot = (from: string): string => {
         const actual = ch.houses?.length ?? 0;
         if (houses !== actual) fail(`docs: chapter ${n} documents ${houses} house(s), data has ${actual}`);
       }
-      for (const ch of CHAPTERS) {
+      for (const ch of CHAPTERS.filter(c => !c.requires)) {
         if (!listed.has(ch.number)) fail(`docs: ${docName} chapter table omits chapter ${ch.number} (${ch.title})`);
       }
     }
@@ -329,7 +331,7 @@ function enemyTurn(s: BattleState): BattleState {
 function runCampaign(): string {
   let c: Campaign = newCampaign('casual');
   const notes: string[] = [];
-  for (let ci = 0; ci < CHAPTERS.length; ci++) {
+  for (let ci = 0; ci < CHAPTERS.length;) {
     c = addRecruits(c, ci);
     let s = createBattle(ci, c.roster, c.ranks);
     let o = outcome(s);
@@ -337,7 +339,9 @@ function runCampaign(): string {
     notes.push(`ch${ci + 1}:${o[0]}${s.turn}`); if (o === "ongoing") notes.push(s.units.map(u => `${u.name}@${u.x},${u.y}:${u.hp}`).join(" "));
     if (o !== 'victory') return notes.join(' ');
     c = mergeBattle(c, toResult(s), ci);
-    c = enterCamp(c, ci + 1);
+    const next = nextChapter(c, ci);
+    c = enterCamp(c, next);
+    ci = next;
     // emulate camp: full rest + train two units
     c.roster = c.roster.map(u => ({ ...u, hp: u.stats.hp }));
     for (let k = 0; k < 2; k++) { const i = Math.floor(Math.random() * c.roster.length); c.roster[i] = gainExp(c.roster[i], 50, Math.random).unit; }
@@ -378,6 +382,82 @@ for (const [id, el] of [['nerys', 'water'], ['garrow', 'earth'], ['kestrel', 'wi
   if (!PROFILES[id]) fail(`dragonkin: ${id} has no profile`);
 }
 if (!SUPPORTS.some(p => p.romance && pairKey(p.a, p.b) === pairKey('kael', 'aurelie'))) fail('romance: Kael and Aurelie should be a romance');
+
+// ---- green allies (chapter 6): enemies hunt them, the army heals them and hands them vulneraries; all three alive opens the side chapter
+{
+  const ci = CHAPTERS.findIndex(c => c.allies?.length);
+  if (ci < 0) fail('allies: no chapter has green allies');
+  else {
+    let c = newCampaign('casual');
+    for (let i = 0; i <= ci; i++) c = addRecruits(c, i);
+    const s = createBattle(ci, c.roster, {});
+    const allies = s.units.filter(u => u.team === 'ally');
+    if (allies.length !== 3) fail(`allies: expected 3 green allies, got ${allies.length}`);
+    if (!alliesSaved(s)) fail('allies: all alive at the start should count as saved');
+    const a = allies[0], foe = s.units.find(u => u.team === 'enemy')!, mira = s.units.find(u => u.id === 'mira')!;
+    foe.x = a.x + 1; foe.y = a.y; foe.hp = foe.stats.hp;
+    if (!attackableTargets(s, foe).some(t => t.id === a.id)) fail('allies: enemies should be able to attack green allies');
+    mira.x = a.x - 1; mira.y = a.y; a.hp = 5;
+    if (attackableTargets(s, mira).some(t => t.id === a.id)) fail('allies: the army must not attack its allies');
+    if (!healTargets(s, mira).some(t => t.id === a.id)) fail('allies: a healer should be able to heal a green ally');
+    if (!applyTrade(s, mira.id, a.id, { kind: 'potions' })) fail('allies: handing a green ally a vulnerary should work');
+    if (applyTrade(s, a.id, mira.id, { kind: 'weapon', index: 0 })) fail('allies: a green ally must not hand over its weapons');
+    const p = planEnemy(applyTrade(s, mira.id, a.id, { kind: 'potions' })!, { ...a, potions: 1 });
+    if (!p.potion) fail('allies: a badly hurt ally with a vulnerary should drink it');
+    const lost = { ...s, units: s.units.filter(u => u.id !== a.id) };
+    if (alliesSaved(lost)) fail('allies: losing one should not count as saved');
+    const flag = CHAPTERS[ci].allyReward!.flag;
+    const won = mergeBattle(c, toResult(s), ci), missed = mergeBattle(c, toResult(lost), ci);
+    if (!won.flags?.includes(flag) || won.gold - missed.gold !== CHAPTERS[ci].allyReward!.gold) fail('allies: saving them all should pay the reward and set the flag');
+    const side = CHAPTERS.findIndex(ch => ch.requires === flag);
+    if (side < 0 || nextChapter(won, ci) !== side) fail('allies: saving them all should lead to the side chapter');
+    if (nextChapter(missed, ci) === side || CHAPTERS[nextChapter(missed, ci)].requires) fail('allies: missing one should skip the side chapter for good');
+    if (!CHAPTERS[side].recruits?.includes('vesper')) fail('side chapter: Vesper should join there');
+  }
+}
+
+// ---- Vesper: a Mage until chapter 7 finds her a stone; then a Dragon Sage choosing her dragon each time
+{
+  const ci = CHAPTERS.findIndex(c => c.awaken?.id === 'vesper');
+  if (ci < 0) fail('vesper: no chapter awakens her');
+  else {
+    const base = { ...newCampaign('casual'), roster: [createPlayerUnit('kael')] };
+    if (createPlayerUnit('vesper').stones) fail('vesper: she starts with no dragonstones');
+    const without = addRecruits(base, ci);
+    if (without.roster.some(u => u.id === 'vesper')) fail('vesper: she must not appear without the side chapter');
+    if (linesFor(without, CHAPTERS[ci].pre).some(l => l.speaker === 'vesper')) fail('vesper: her chapter 7 scene must be hidden when she never joined');
+    const withV = addRecruits({ ...base, roster: [...base.roster, createPlayerUnit('vesper')] }, ci);
+    const v = withV.roster.find(u => u.id === 'vesper')!;
+    if (v.classId !== 'dragonsage' || v.stones !== 1) fail(`vesper: chapter 7 should make her a Dragon Sage with one stone, got ${v.classId} ${v.stones}`);
+    const s = createBattle(ci, withV.roster, {});
+    if (applyTransform(s, 'vesper', 'light' as never)) fail('vesper: light dragons are Aurelie\'s alone');
+    const t = applyTransform(s, 'vesper', 'water');
+    const d = t?.units.find(u => u.id === 'vesper');
+    if (!d?.dragon || elementOf(d.weapons) !== 'water') fail('vesper: transforming as water should give water breath');
+    else {
+      if (attackWeapons(d).some(i => WEAPONS[d.weapons[i].defId].type !== 'breath')) fail('vesper: in dragon form only breath attacks');
+      shiftToHuman(d);
+      if (d.weapons.some(w => w.defId.endsWith('_breath'))) fail('vesper: the chosen breath should vanish on changing back');
+      if (!attackWeapons(d).length) fail('vesper: back in human form she casts her tomes');
+    }
+  }
+}
+
+// ---- preparations: Kael and the chapter's recruits lead the default line-up, which never exceeds the slots
+{
+  let c = newCampaign('casual');
+  for (let i = 0; i < CHAPTERS.length; i++) c = addRecruits(c, i);
+  for (const ch of CHAPTERS) {
+    const ids = defaultLineup(ch, c.roster);
+    if (ids.length > deploySlots(ch)) fail(`prep: ${ch.title} line-up has ${ids.length} for ${deploySlots(ch)} slots`);
+    if (ids[0] !== 'kael') fail(`prep: ${ch.title} line-up should start with Kael`);
+    const ci = CHAPTERS.indexOf(ch);
+    const benched = c.roster.map(u => ({ ...u, reserve: !u.isLord }));
+    const deployed = createBattle(ci, benched, {}).units.filter(u => u.team === 'player').map(u => u.id);
+    for (const r of ch.recruits ?? []) if (!deployed.includes(r)) fail(`prep: ${ch.title} must deploy its recruit ${r} even if set to reserve`);
+    for (const r of ch.recruits ?? []) if (!ids.includes(r)) fail(`prep: ${ch.title} line-up should include its recruit ${r}`);
+  }
+}
 
 // ---- challenge mode: a default map is playable, rules hold, files round-trip
 {
@@ -428,7 +508,7 @@ if (!SUPPORTS.some(p => p.romance && pairKey(p.a, p.b) === pairKey('kael', 'aure
 
 const results: string[] = [];
 for (let i = 0; i < 40; i++) results.push(runCampaign());
-const wins = results.filter(r => r.includes('ch5:v')).length;
+const wins = results.filter(r => r.includes(`ch${CHAPTERS.length}:v`)).length;
 results.slice(0, 8).forEach(r => console.log(r));
 const furthest: Record<string, number> = {};
 results.forEach(r => { const last = r.split(' | ')[0].split(' ').pop()!; furthest[last.slice(0, 5)] = (furthest[last.slice(0, 5)] ?? 0) + 1; });

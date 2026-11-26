@@ -36,12 +36,20 @@ export const DRAGON_TURNS = 4;
 /** Added to a unit's stats for as long as it is a dragon. */
 export const DRAGON_BONUS: Partial<Stats> = { hp: 10, str: 8, skl: 3, spd: 2, def: 7 };
 
-/** Take dragon form: the bonus goes straight into the stats, so every combat rule sees it. */
-export function shiftToDragon(u: Unit): void {
+/** Dragon kinds a Dragon Sage can choose from. Light belongs to Aurelie alone, dark to the Dark Dragon. */
+export const FORMS = ['fire', 'water', 'earth', 'wind'] as const;
+export type Form = typeof FORMS[number];
+
+/**
+ * Take dragon form: the bonus goes straight into the stats, so every combat rule sees it. A class
+ * with `forms` gets the chosen kind's breath for as long as the form lasts.
+ */
+export function shiftToDragon(u: Unit, form: Form = 'fire'): void {
   for (const k of STAT_KEYS) u.stats[k] += DRAGON_BONUS[k] ?? 0;
   u.hp += DRAGON_BONUS.hp ?? 0;
   u.dragon = DRAGON_TURNS;
   u.stones = (u.stones ?? 0) - 1;
+  if (CLASSES[u.classId]?.forms) u.weapons.push({ uid: uid(), defId: `${form}_breath`, forge: 0, temp: true });
   const breath = u.weapons.findIndex(w => WEAPONS[w.defId].type === 'breath');
   if (breath >= 0) u.equipped = breath;
 }
@@ -51,7 +59,11 @@ export function shiftToHuman(u: Unit): void {
   for (const k of STAT_KEYS) u.stats[k] -= DRAGON_BONUS[k] ?? 0;
   u.hp = Math.max(1, Math.min(u.hp, u.stats.hp));
   u.dragon = undefined;
+  if (u.weapons.some(w => w.temp)) { u.weapons = u.weapons.filter(w => !w.temp); u.equipped = 0; }
 }
+
+/** Hostile to each other: the enemy against everyone else. Player and green ally units are friends. */
+export const foes = (a: Pick<Unit, 'team'>, b: Pick<Unit, 'team'>): boolean => a.team !== b.team && (a.team === 'enemy' || b.team === 'enemy');
 
 export const uid = (): string => Math.random().toString(36).slice(2, 10);
 export const clone = <T>(x: T): T => structuredClone(x);
@@ -107,8 +119,9 @@ export function giveItem(a: Unit, b: Unit, item: TradeItem): string | null {
 }
 export const canWield = (u: Pick<Unit, 'classId'>, w: WeaponInstance): boolean =>
   classOf(u).weapons.includes(wdef(w).type);
+/** Breath only in dragon form, and in dragon form only breath. */
 export const attackWeapons = (u: Unit): number[] =>
-  u.weapons.map((w, i) => (canWield(u, w) && wdef(w).type !== 'staff' && (wdef(w).type !== 'breath' || !!u.dragon) ? i : -1)).filter(i => i >= 0);
+  u.weapons.map((w, i) => (canWield(u, w) && wdef(w).type !== 'staff' && (wdef(w).type === 'breath') === !!u.dragon ? i : -1)).filter(i => i >= 0);
 export const staffIndex = (u: Unit): number =>
   u.weapons.findIndex(w => canWield(u, w) && wdef(w).type === 'staff');
 export const movOf = (u: Unit): number => classOf(u).mov;
@@ -122,14 +135,14 @@ export function goldValue(u: Unit): number {
   return u.level * 30 + (u.isBoss ? 800 : 0);
 }
 
-export function makeEnemy(sp: EnemySpawn, id: string): Unit {
+export function makeEnemy(sp: EnemySpawn, id: string, team: 'enemy' | 'ally' = 'enemy'): Unit {
   const c = CLASSES[sp.classId];
   const stats = {} as Stats;
   for (const k of STAT_KEYS) {
     stats[k] = c.base[k] + Math.floor((c.growth[k] * (sp.level - 1)) / 100) + (sp.statBonus?.[k] ?? 0);
   }
   return {
-    id, name: sp.name ?? c.name, classId: sp.classId, team: 'enemy',
+    id, name: sp.name ?? c.name, classId: sp.classId, team,
     level: sp.level, exp: 0, stats, growth: { ...c.growth }, hp: stats.hp,
     weapons: sp.weapons.map(makeWeapon), equipped: 0, potions: sp.potions ?? 0, stones: c.shifts ? 1 : undefined, picks: c.steals ? [2] : undefined, keys: sp.key ? 1 : undefined,
     isBoss: sp.isBoss, ai: sp.ai ?? 'aggressive', lookId: sp.lookId,

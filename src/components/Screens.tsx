@@ -2,7 +2,11 @@ import { useState } from 'react';
 import { CHARACTER_ENDINGS, lookById, nameById } from '../game/data/characters';
 import { STORY_FINISHED } from '../game/data/chapters';
 import { SUPPORTS, pairKey } from '../game/data/supports';
-import type { Campaign, GameMode } from '../game/types';
+import type { Campaign, Chapter, GameMode, Unit } from '../game/types';
+import { lookFor } from '../game/data/characters';
+import { defaultLineup, deploySlots, mustDeploy } from '../game/battle';
+import { classOf, wdef } from '../game/units';
+import { HpBar } from './battle/parts';
 import { Portrait, WeaponIcon } from './art';
 import { TriangleLegend } from './battle/parts';
 import { Codex } from './Profile';
@@ -25,7 +29,7 @@ export function TitleScreen({ canContinue, onNew, onContinue, onLoad, onChalleng
         <button className="ghost" onClick={() => setPanel('help')}>How to play</button>
         <button className="ghost" onClick={() => { window.location.hash = '#sprites'; }}>Sprites</button>
       </div>
-      <p className="title-foot">A tactical role-playing game. The first five chapters are here; more are coming.</p>
+      <p className="title-foot">A tactical role-playing game. The first seven chapters are here; more are coming.</p>
 
       {panel === 'mode' && (
         <div className="modal-back" onClick={() => setPanel('none')}>
@@ -77,6 +81,46 @@ export function TitleScreen({ canContinue, onNew, onContinue, onLoad, onChalleng
   );
 }
 
+/**
+ * Preparation before a battle with more companions than slots: choose who deploys. Kael always
+ * does. Starts from the default line-up (Kael, this chapter's recruits, then the marching order).
+ */
+export function PrepScreen({ chapter, roster, onStart }: { chapter: Chapter; roster: Unit[]; onStart: (ids: string[]) => void }) {
+  const slots = deploySlots(chapter);
+  const [picked, setPicked] = useState<string[]>(() => defaultLineup(chapter, roster));
+  const able = roster.filter(u => u.hp > 0);
+  const toggle = (u: Unit) => {
+    if (mustDeploy(chapter, u)) return;
+    setPicked(p => (p.includes(u.id) ? p.filter(id => id !== u.id) : p.length < slots ? [...p, u.id] : p));
+  };
+  return (
+    <div className="prep">
+      <h1>Preparations</h1>
+      <p className="hint">{chapter.title}: {chapter.objectiveText}</p>
+      <p className="hint">Choose who fights: <b>{picked.length}/{slots}</b>. Kael always leads, and anyone joining in this battle must fight. You can arrange everyone on the map before the first turn.</p>
+      <section className="army">
+        {able.map(u => {
+          const on = picked.includes(u.id);
+          return (
+            <button key={u.id} className={'army-card prep-card' + (on ? ' on' : '')} aria-pressed={on} disabled={mustDeploy(chapter, u) || (!on && picked.length >= slots)} onClick={() => toggle(u)}>
+              <Portrait look={lookFor(u)} size={64} />
+              <div className="ac-body">
+                <h3>{u.name} {mustDeploy(chapter, u) && <small>must fight</small>}</h3>
+                <p>Lv {u.level} {classOf(u).name}</p>
+                <div className="uc-hp"><HpBar hp={u.hp} max={u.stats.hp} /><span>{u.hp}/{u.stats.hp}</span></div>
+                <p className="ac-weapons">{u.weapons.map(w => <span key={w.uid}><WeaponIcon type={wdef(w).type} size={13} /> {wdef(w).name}</span>)}</p>
+              </div>
+            </button>
+          );
+        })}
+      </section>
+      <div className="title-menu">
+        <button className="primary" onClick={() => onStart(picked)}>Begin the battle</button>
+      </div>
+    </div>
+  );
+}
+
 export function GameOverScreen({ onRetry, onLoad, onTitle }: { onRetry: () => void; onLoad: () => void; onTitle: () => void }) {
   return (
     <div className="gameover">
@@ -96,7 +140,7 @@ export function EndingScreen({ campaign, onTitle }: { campaign: Campaign; onTitl
     return (
       <div className="ending">
         <h1>To be continued</h1>
-        <p>Kael's army has escaped Caer Valen. The road to Saltmere, and the rest of the story, is still being written.</p>
+        <p>Deepforge is free, and Malrec will come for Solenne's goddess next. The road to Solenne, and the rest of the story, is still being written.</p>
         <p className="hint">Your progress is kept in the autosave from the last rest area.</p>
         <button className="primary" onClick={onTitle}>Return to title</button>
       </div>

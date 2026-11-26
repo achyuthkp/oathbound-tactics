@@ -26,6 +26,7 @@ export function attackPose(w?: WeaponType): Pose {
     case 'axe': return 'chop';
     case 'bow': return 'shoot';
     case 'staff': return 'cast';
+    case 'tome': return 'cast';
     case 'breath': return 'breath';
     default: return 'slash';
   }
@@ -353,6 +354,10 @@ const WEAPON_STYLE: Record<string, WeaponStyle> = {
   // staves
   mend: { orb: '#8affb0', shaft: '#e6dcc0', halo: true },
   oak_staff: { orb: '#ffcf6a', shaft: '#7a5a34', leaves: true },
+  // tomes: the cover colour is the spell's
+  fire_tome: { orb: '#d8452a' },
+  thunder_tome: { orb: '#e8c43a' },
+  blizzard_tome: { orb: '#7ac8f0' },
 };
 
 function drawWeapon(l: Canvas, type: WeaponType, h: V, d: V, accent: string, glow: boolean, st: WeaponStyle) {
@@ -400,6 +405,14 @@ function drawWeapon(l: Canvas, type: WeaponType, h: V, d: V, accent: string, glo
     l.rect(ox - 1, oy - 1, 3, 3, accent);
     l.set(ox, oy - 2, accent); l.set(ox, oy + 2, shade(accent, 0.35));
     l.set(ox - 1, oy - 1, '#ffffff'); l.set(ox + 1, oy + 1, shade(accent, 0.35));
+  } else if (type === 'tome') {
+    // an open spellbook held flat in the hand, glowing in the spell's colour when cast
+    const [ox, oy] = [h[0], h[1] - 2];
+    const cover = st.orb ?? '#7a4ab0';
+    l.rect(ox - 2, oy - 1, 5, 3, cover);
+    l.rect(ox - 1, oy - 1, 3, 2, '#efe6d0');
+    l.set(ox, oy - 1, shade(cover, 0.35));
+    if (glow) for (const [dx, dy] of [[0, -3], [-1, -4], [1, -4], [0, -5]]) l.set(ox + dx, oy + dy, tint(cover, 0.5));
   } else if (type === 'staff') {
     run(-5, 7, st.shaft ?? '#cdb98a');
     l.set(...at(h, d, 7, p, 1), accent);
@@ -718,6 +731,7 @@ const REST: Record<WeaponType | 'none', { hand: V; dir: V; back: V }> = {
   bow: { hand: [7, 1], dir: [0, -1], back: [8, 2] },
   staff: { hand: [5, 3], dir: [0, -1], back: [-1, 4] },
   breath: { hand: [4, 1], dir: [0, -1], back: [-1, 4] },
+  tome: { hand: [4, 1], dir: [0, -1], back: [-1, 4] },
   none: { hand: [1, 5], dir: [0, 0], back: [-1, 4] },
 };
 

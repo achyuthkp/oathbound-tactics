@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CHAPTERS } from '../../game/data/chapters';
 import { planEnemy } from '../../game/ai';
 import {
-  applyAttack, applyHeal, applyPotion, applySeize, applyBurn, applyOpen, applySteal, applyTransform, applyVisit, canTransform, locksNear, openTools, applyTrade, tradePartners, type TradeItem, houseAt, stealOptions, type StealOption, attackableTargets, bestWeaponFor, createBattle,
+  applyAttack, applyHeal, applyPotion, applySeize, applyBurn, applyOpen, applySteal, applyTransform, applyVisit, canTransform, locksNear, openTools, applyTrade, tradeAllowed, alliesSaved, tradePartners, type TradeItem, houseAt, stealOptions, type StealOption, attackableTargets, bestWeaponFor, createBattle,
   endEnemyPhase, endPlayerPhase, healAmount, healTargets, markDone, outcome, toResult,
   type BattleEvents, type BattleResult,
 } from '../../game/battle';
@@ -12,7 +12,7 @@ import {
   computeReach, destinations, key, manhattan, pathTo, threatTiles, tilesInRange, unitAt, type Reach,
 } from '../../game/pathfinding';
 import type { BattleState, Campaign, Chapter, Pos, Unit } from '../../game/types';
-import { MAX_ITEMS, PICK_USES, STACKS, STACK_IDS, attackWeapons, canTake, picksOf, isFlying, itemCount, staffIndex, wdef, weaponLabel } from '../../game/units';
+import { FORMS, MAX_ITEMS, PICK_USES, STACKS, STACK_IDS, attackWeapons, canTake, classOf, type Form, picksOf, isFlying, itemCount, staffIndex, wdef, weaponLabel } from '../../game/units';
 import { profileFor } from '../../game/data/profiles';
 import type { Strike, Forecast } from '../../game/combat';
 import type { TerrainId } from '../../game/types';
@@ -62,11 +62,15 @@ interface Props {
 export function BattleScreen({ chapterIndex, campaign, custom, resume, registerSave, onOpenSaveMenu, onVictory, onDefeat, onQuit }: Props) {
   const chapter = custom ?? resume?.custom ?? CHAPTERS[chapterIndex];
   const [state, _setState] = useState<BattleState>(() => (resume ? structuredClone(resume) : createBattle(chapterIndex, campaign.roster, campaign.ranks, custom)));
-  const chapterLabel = chapter.number ? `Chapter ${chapter.number}: ` : 'Challenge: ';
+  const chapterLabel = chapter.requires ? 'Side chapter: ' : chapter.number ? `Chapter ${chapter.number}: ` : 'Challenge: ';
   const stateRef = useRef(state);
   const setState = useCallback((s: BattleState) => { stateRef.current = s; _setState(s); }, []);
 
   const [mode, setMode] = useState<Mode>({ kind: 'idle' });
+  /** Before turn 1 of a story battle: arrange the army on the start tiles. */
+  const [formation, setFormation] = useState(!resume && !custom);
+  const [pick, setPick] = useState<string | null>(null);
+  const startKeys = useMemo(() => new Set(chapter.playerStarts.map(p => key(p.x, p.y))), [chapter]);
   const [busy, setBusy] = useState(true);
   const [hover, setHover] = useState<Pos | null>(null);
   const [banner, setBanner] = useState<Banner | null>(null);
@@ -239,7 +243,8 @@ export function BattleScreen({ chapterIndex, campaign, custom, resume, registerS
     setBusy(true);
     setMode({ kind: 'idle' });
     if (o === 'victory') {
-      await showBanner('Victory', 'victory', 2200, chapter.objectiveText);
+      const reward = chapter.allyReward && alliesSaved(s) ? chapter.allyReward : null;
+      await showBanner('Victory', 'victory', 2200, reward ? `Every ally survived! +${reward.gold} gold` : chapter.objectiveText);
       if (alive.current) onVictory(toResult(s));
     } else {
       await showBanner('Defeat', 'defeat', 2200, 'Kael has fallen. The oath is broken.');
@@ -279,6 +284,7 @@ export function BattleScreen({ chapterIndex, campaign, custom, resume, registerS
         await showBanner('Player phase', 'player', 950, `Turn ${resume.turn}, resumed`);
       } else {
         await showBanner(chapter.title, 'chapter', 1700, `${chapterLabel}${chapter.objectiveText}`);
+        if (!custom) { setBusy(false); return; } // formation first; beginFight shows the phase banner
         await showBanner('Player phase', 'player', 950, 'Turn 1');
       }
       setBusy(false);
@@ -287,9 +293,10 @@ export function BattleScreen({ chapterIndex, campaign, custom, resume, registerS
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function runEnemyPhase() {
+  /** Move one AI side: the green allies, or the enemy. */
+  async function runEnemyPhase(team: 'ally' | 'enemy' = 'enemy') {
     const order = stateRef.current.units
-      .filter(u => u.team === 'enemy')
+      .filter(u => u.team === team)
       .sort((a, b) => Number(isFlying(b)) - Number(isFlying(a)) || b.stats.spd - a.stats.spd)
       .map(u => u.id);
     for (const id of order) {
@@ -297,8 +304,12 @@ export function BattleScreen({ chapterIndex, campaign, custom, resume, registerS
       const unit = find(id);
       if (!unit) continue;
       const plan = planEnemy(stateRef.current, unit);
-      const acts = plan.path.length > 1 || !!plan.attack || !!plan.raid || !!plan.loot || !!plan.transform || !!plan.steal;
+      const acts = plan.path.length > 1 || !!plan.attack || !!plan.raid || !!plan.loot || !!plan.transform || !!plan.steal || !!plan.potion;
       if (plan.path.length > 1) { await animateMove(id, plan.path); await sleep(110); }
+      if (plan.potion) {
+        const r = applyPotion(stateRef.current, id);
+        setState(r.state); reveal(unit); addFloat(unit, `+${r.amount}`, 'heal'); await sleep(700);
+      }
       if (plan.attack) await doCombat(id, plan.attack.targetId, plan.attack.weaponIdx);
       if (plan.transform) {
         const t = applyTransform(stateRef.current, id);
@@ -329,8 +340,13 @@ export function BattleScreen({ chapterIndex, campaign, custom, resume, registerS
     setInspect(null);
     const r = endPlayerPhase(stateRef.current);
     setState(r.state);
-    await showBanner('Enemy phase', 'enemy', 950);
     for (const h of r.heals) { const u = find(h.unitId); if (u) addFloat(u, `+${h.amount}`, 'heal'); }
+    if (stateRef.current.units.some(u => u.team === 'ally')) {
+      await showBanner('Ally phase', 'ally', 950);
+      await runEnemyPhase('ally');
+      if (endedRef.current || !alive.current) return;
+    }
+    await showBanner('Enemy phase', 'enemy', 950);
     await runEnemyPhase();
     if (endedRef.current || !alive.current) return;
     const r2 = endEnemyPhase(stateRef.current);
@@ -487,7 +503,7 @@ export function BattleScreen({ chapterIndex, campaign, custom, resume, registerS
     // Danger zone is a view toggle, not a turn action, so it works whenever the map is visible.
     if (k === 'z' || k === 'Z') { setDanger(v => !v); return true; }
     if (busy || endedRef.current || s.phase !== 'player' || mode.kind === 'menu') return false;
-    if (k === 't' || k === 'T') { void endTurn(); return true; }
+    if (k === 't' || k === 'T') { void (formation ? beginFight() : endTurn()); return true; }
     if (k === 'r' || k === 'R') {
       if (mode.kind === 'target' && mode.action === 'attack') {
         const unit = s.units.find(u => u.id === mode.unitId);
@@ -563,8 +579,33 @@ export function BattleScreen({ chapterIndex, campaign, custom, resume, registerS
     if (p) void clickTile(p);
   }
 
+  /** Formation: pick one of your units, then a start tile to move it there (or another unit to swap). */
+  function formationClick(p: Pos) {
+    const s = stateRef.current;
+    const u = unitAt(s, p.x, p.y);
+    const picked = pick ? s.units.find(x => x.id === pick) : undefined;
+    if (picked && startKeys.has(key(p.x, p.y)) && (!u || u.team === 'player') && u?.id !== picked.id) {
+      setState({ ...s, units: s.units.map(x => (x.id === picked.id ? { ...x, x: p.x, y: p.y } : u && x.id === u.id ? { ...x, x: picked.x, y: picked.y } : x)) });
+      setPick(null);
+      return;
+    }
+    if (u && u.team === 'player') { setPick(u.id === pick ? null : u.id); setInspect(null); return; }
+    setPick(null);
+    setInspect(u ? (inspect === u.id ? null : u.id) : null);
+  }
+
+  async function beginFight() {
+    if (!formation) return;
+    setFormation(false);
+    setPick(null);
+    setBusy(true);
+    await showBanner('Player phase', 'player', 950, 'Turn 1');
+    setBusy(false);
+  }
+
   async function clickTile(p: Pos) {
     if (busy || endedRef.current) return;
+    if (formation) { formationClick(p); return; }
     const s = stateRef.current;
     if (s.phase !== 'player') return;
     const u = unitAt(s, p.x, p.y);
@@ -713,8 +754,8 @@ export function BattleScreen({ chapterIndex, campaign, custom, resume, registerS
         } else { addFloat(r.lock, 'Unlocked!', 'gold'); await sleep(800); }
       }
     }
-    if (action === 'transform') {
-      const t = applyTransform(stateRef.current, u.id);
+    if (action.startsWith('transform')) {
+      const t = applyTransform(stateRef.current, u.id, (action.split(':')[1] || undefined) as Form | undefined);
       if (t) { setState(t); addFloat(u, 'Dragon form!', 'gold'); await sleep(800); }
     }
     if (action === 'seize') setState(applySeize(stateRef.current));
@@ -731,7 +772,11 @@ export function BattleScreen({ chapterIndex, campaign, custom, resume, registerS
     if (menuUnit.potions > 0 && menuUnit.hp < menuUnit.stats.hp) menuItems.push({ id: 'item', label: `Vulnerary (${menuUnit.potions})` });
     const o = chapter.objective;
     if (o.type === 'seize' && (menuUnit.isLord || chapter.loseRule === 'all') && menuUnit.x === o.x && menuUnit.y === o.y) menuItems.push({ id: 'seize', label: 'Seize' });
-    if (canTransform(menuUnit)) menuItems.push({ id: 'transform', label: `Transform (${menuUnit.stones} stone${menuUnit.stones === 1 ? '' : 's'})` });
+    if (canTransform(menuUnit)) {
+      const stones = `${menuUnit.stones} stone${menuUnit.stones === 1 ? '' : 's'}`;
+      if (classOf(menuUnit).forms) for (const f of FORMS) menuItems.push({ id: `transform:${f}`, label: `Transform: ${f} dragon (${stones})` });
+      else menuItems.push({ id: 'transform', label: `Transform (${stones})` });
+    }
     if (stealOptions(state, menuUnit).length) menuItems.push({ id: 'steal', label: 'Steal' });
     for (const l of locksNear(state, menuUnit)) for (const tool of openTools(menuUnit)) {
       menuItems.push({ id: `open:${l.x}:${l.y}:${tool}`, label: `${l.kind[0].toUpperCase()}${l.kind.slice(1)}: use ${tool === 'pick' ? 'lockpick' : 'key'}` });
@@ -764,7 +809,12 @@ export function BattleScreen({ chapterIndex, campaign, custom, resume, registerS
 
   const tileStyle = (k: number) => ({ left: (k % 64) * TILE, top: Math.floor(k / 64) * TILE, width: TILE, height: TILE });
 
-  const hudContext = fc && actor && target ? (
+  const hudContext = formation ? (
+    <div className="hud-heal">
+      <span><b>Formation.</b> Click one of your units, then a highlighted start tile to move it there, or another unit to swap places. Check the enemy with Danger zone.</span>
+      <button className="primary" onClick={() => void beginFight()}>Fight!</button>
+    </div>
+  ) : fc && actor && target ? (
     <HudForecast att={actor} def={target} fc={fc} weaponChoices={weaponChoices} onCycle={cycleWeapon} onConfirm={confirmTarget} onCancel={cancel} />
   ) : targetMode && targetMode.action === 'heal' && actor && target ? (
     <div className="hud-heal">
@@ -826,6 +876,8 @@ export function BattleScreen({ chapterIndex, campaign, custom, resume, registerS
             <TerrainLayer map={state.map} visited={state.visited} burned={state.burned} opened={state.opened} />
             <div className="hl-layer">
               {dangerSet && [...dangerSet].map(k => <div key={`d${k}`} className="hl danger" style={tileStyle(k)} />)}
+              {formation && [...startKeys].map(k => <div key={`s${k}`} className="hl move" style={tileStyle(k)} />)}
+              {formation && pick && (u => u ? <div className="hl heal strong" style={tileStyle(key(u.x, u.y))} /> : null)(state.units.find(x => x.id === pick))}
               {[...overlay.move].map(k => <div key={`m${k}`} className={`hl move ${focusUnit?.team === 'enemy' ? 'foe' : ''}`} style={tileStyle(k)} />)}
               {[...overlay.attack].map(k => <div key={`a${k}`} className="hl attack" style={tileStyle(k)} />)}
               {[...overlay.heal].map(k => <div key={`h${k}`} className="hl heal" style={tileStyle(k)} />)}
@@ -899,7 +951,7 @@ export function BattleScreen({ chapterIndex, campaign, custom, resume, registerS
         </section>
         <section className="hud-context">{hudContext}</section>
         <section className="hud-actions">
-          <button className="primary" data-pad="select" disabled={busy || state.phase !== 'player'} onClick={endTurn} aria-keyshortcuts="T" title="End turn (T)">
+          <button className="primary" data-pad="select" disabled={busy || formation || state.phase !== 'player'} onClick={endTurn} aria-keyshortcuts="T" title="End turn (T)">
             End turn{playersLeft ? ` (${playersLeft})` : ''}
           </button>
           <div className="hud-toggles">
@@ -943,14 +995,14 @@ export function BattleScreen({ chapterIndex, campaign, custom, resume, registerS
           <div style={{ flex: 1, display: 'grid', gap: 6, alignContent: 'start' }}>
             <strong>{from.name} <small>{itemCount(from)}/{MAX_ITEMS} items</small></strong>
             {from.weapons.map((w, i) => (
-              <button key={w.uid} disabled={wdef(w).tier >= 99 || !canTake(to)} title={wdef(w).tier >= 99 ? 'A personal weapon cannot be traded' : undefined}
+              <button key={w.uid} disabled={wdef(w).tier >= 99 || !canTake(to) || !tradeAllowed(from, to, { kind: 'weapon', index: i })} title={wdef(w).tier >= 99 ? 'A personal weapon cannot be traded' : undefined}
                 onClick={() => doTrade(from.id, to.id, { kind: 'weapon', index: i })}>{weaponLabel(w)}</button>
             ))}
             {picksOf(from).map((p, i) => (
-              <button key={`pick${i}`} disabled={!canTake(to)} onClick={() => doTrade(from.id, to.id, { kind: 'pick', index: i })}>Lockpick {p}/{PICK_USES}</button>
+              <button key={`pick${i}`} disabled={!canTake(to) || !tradeAllowed(from, to, { kind: 'pick', index: i })} onClick={() => doTrade(from.id, to.id, { kind: 'pick', index: i })}>Lockpick {p}/{PICK_USES}</button>
             ))}
             {STACK_IDS.filter(k => (from[k] ?? 0) > 0).map(k => (
-              <button key={k} disabled={!canTake(to, k)} onClick={() => doTrade(from.id, to.id, { kind: k })}>{STACKS[k].name} ×{from[k]}</button>
+              <button key={k} disabled={!canTake(to, k) || !tradeAllowed(from, to, { kind: k })} onClick={() => doTrade(from.id, to.id, { kind: k })}>{STACKS[k].name} ×{from[k]}</button>
             ))}
           </div>
         );
